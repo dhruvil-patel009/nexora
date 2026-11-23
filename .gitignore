@@ -48,3 +48,5 @@ Thumbs.db
 .docker-data/
 postgres-data/
 redis-data/
+
+package-lock.json
