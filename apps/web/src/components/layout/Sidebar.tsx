@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Workflow,
@@ -15,9 +15,11 @@ import {
   ChevronRight,
   ExternalLink,
   Shield,
-  HelpCircle,
+  LogOut,
 } from "lucide-react";
 import { Logo } from "../brand/Logo";
+import { getActiveWorkspace, getCurrentUser, clearAuthSession } from "@/lib/auth";
+import { AuthUser, AuthWorkspace } from "@nexora/shared";
 
 const navItems = [
   {
@@ -66,7 +68,24 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [workspace, setWorkspace] = useState<AuthWorkspace | null>(null);
+
+  useEffect(() => {
+    setUser(getCurrentUser());
+    setWorkspace(getActiveWorkspace());
+  }, []);
+
+  const handleLogout = () => {
+    clearAuthSession();
+    router.push("/login");
+  };
+
+  const initial = user?.fullName ? user.fullName[0].toUpperCase() : (workspace?.name ? workspace.name[0].toUpperCase() : "D");
+  const workspaceName = workspace?.name || "Default Workspace";
+  const userRole = workspace?.role || "OWNER";
 
   return (
     <aside
@@ -97,12 +116,12 @@ export function Sidebar() {
         >
           <div className="flex items-center gap-2.5 overflow-hidden">
             <div className="w-6 h-6 rounded-md bg-gradient-to-tr from-[#22D3EE] to-[#8B5CF6] flex items-center justify-center text-[#101827] font-bold text-xs shrink-0">
-              D
+              {initial}
             </div>
             {!collapsed && (
               <div className="flex flex-col truncate">
-                <span className="text-xs font-semibold text-[#F8FAFC] truncate">Default Workspace</span>
-                <span className="text-[10px] font-mono text-[#22D3EE]">Owner</span>
+                <span className="text-xs font-semibold text-[#F8FAFC] truncate">{workspaceName}</span>
+                <span className="text-[10px] font-mono text-[#22D3EE]">{userRole}</span>
               </div>
             )}
           </div>
@@ -151,7 +170,7 @@ export function Sidebar() {
       </nav>
 
       {/* Footer Info & API Docs Link */}
-      <div className="p-3 border-t border-[#1E293B] space-y-2">
+      <div className="p-3 border-t border-[#1E293B] space-y-1.5">
         <a
           href="http://localhost:4000/docs"
           target="_blank"
@@ -168,8 +187,19 @@ export function Sidebar() {
           {!collapsed && <ExternalLink className="w-3.5 h-3.5 shrink-0" />}
         </a>
 
+        <button
+          onClick={handleLogout}
+          className={`w-full flex items-center rounded-lg text-xs text-[#EF4444]/80 hover:text-[#EF4444] hover:bg-[#EF4444]/10 transition-colors ${
+            collapsed ? "justify-center p-2" : "px-3 py-2 gap-2.5"
+          }`}
+          title="Sign Out"
+        >
+          <LogOut className="w-4 h-4 shrink-0" />
+          {!collapsed && <span>Sign Out</span>}
+        </button>
+
         {!collapsed && (
-          <div className="px-3 py-1 flex items-center justify-between text-[10px] font-mono text-[#64748B]">
+          <div className="px-3 pt-1 flex items-center justify-between text-[10px] font-mono text-[#64748B]">
             <span>NEXORA Core</span>
             <span className="text-[#22C55E]">v0.1.0</span>
           </div>

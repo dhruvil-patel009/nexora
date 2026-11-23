@@ -98,3 +98,43 @@ export interface ServiceHealth {
     redis: { status: 'up' | 'down'; latencyMs?: number };
   };
 }
+
+// Authentication & Workspace Types
+export type WorkspaceRole = 'OWNER' | 'ADMIN' | 'MEMBER';
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  fullName: string;
+}
+
+export interface AuthWorkspace {
+  id: string;
+  name: string;
+  slug: string;
+  role: WorkspaceRole;
+}
+
+export interface AuthResponse {
+  accessToken: string;
+  user: AuthUser;
+  workspace: AuthWorkspace;
+}
+
+export interface RegisterRequest {
+  email: string;
+  password: string;
+  fullName: string;
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface UserProfileResponse {
+  user: AuthUser;
+  workspaces: AuthWorkspace[];
+  activeWorkspaceId: string;
+}
+

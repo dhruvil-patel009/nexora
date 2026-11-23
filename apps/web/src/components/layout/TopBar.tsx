@@ -1,9 +1,11 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { Plus, Bell, Search, Terminal, Activity } from "lucide-react";
+import { Plus, User } from "lucide-react";
 import { Button } from "../ui/Button";
+import { getCurrentUser } from "@/lib/auth";
+import { AuthUser } from "@nexora/shared";
 
 interface TopBarProps {
   title?: string;
@@ -16,6 +18,12 @@ interface TopBarProps {
 }
 
 export function TopBar({ title, subtitle, action }: TopBarProps) {
+  const [user, setUser] = useState<AuthUser | null>(null);
+
+  useEffect(() => {
+    setUser(getCurrentUser());
+  }, []);
+
   return (
     <header className="h-16 px-6 border-b border-[#1E293B] bg-[#101827]/80 backdrop-blur-md flex items-center justify-between z-20 shrink-0 sticky top-0">
       {/* Page Title & Breadcrumb context */}
@@ -31,6 +39,23 @@ export function TopBar({ title, subtitle, action }: TopBarProps) {
           <span className="w-2 h-2 rounded-full bg-[#22C55E] animate-pulse" />
           <span className="text-[#94A3B8]">Runtime Active</span>
         </div>
+
+        {/* User Profile Pill or Login link */}
+        {user ? (
+          <div className="flex items-center gap-2 bg-[#172D43]/50 border border-[#2A4365] px-2.5 py-1 rounded-lg text-xs">
+            <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-[#22D3EE] to-[#8B5CF6] flex items-center justify-center text-[#101827] font-bold text-[10px]">
+              {user.fullName[0].toUpperCase()}
+            </div>
+            <span className="hidden md:inline font-medium text-white">{user.fullName}</span>
+          </div>
+        ) : (
+          <Link
+            href="/login"
+            className="text-xs font-medium text-[#94A3B8] hover:text-[#22D3EE] transition-colors"
+          >
+            Sign In
+          </Link>
+        )}
 
         {/* Global Primary Context Action */}
         {action && (
@@ -52,3 +77,4 @@ export function TopBar({ title, subtitle, action }: TopBarProps) {
     </header>
   );
 }
+

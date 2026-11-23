@@ -14,8 +14,8 @@
 | **Phase 0** | **Repository Inspection & Planning** | Inspect repo, establish architecture docs, plan structure | **Complete** |
 | **Phase 1** | **Foundation & Local Infrastructure** | Monorepo layout, Docker Compose (PG+Redis), NestJS + Next.js init, Prisma setup | **Complete** |
 | **Phase 2** | **Design System & Application Shell** | Nexora theme, navigation layout, sidebar, page shells, empty/loading states | **Complete** |
-| **Phase 3** | **Authentication & Workspace Foundation** | User registration/login, JWT guards, workspace membership, protected routes | **Pending Approval** |
-| **Phase 4** | **Workflow CRUD & Graph Persistence** | Workflow API, React Flow canvas, node palette, graph serializer, unsaved changes | Pending |
+| **Phase 3** | **Authentication & Workspace Foundation** | User registration/login, JWT guards, workspace membership, protected routes | **Complete** |
+| **Phase 4** | **Workflow CRUD & Graph Persistence** | Workflow API, React Flow canvas, node palette, graph serializer, unsaved changes | **Pending Approval** |
 | **Phase 5** | **Validation & First Execution Slice** | DAG cycle check, BullMQ runner, Manual Trigger + Logger execution vertical slice | Pending |
 | **Phase 6** | **HTTP Request & Condition Nodes** | HTTP node with SSRF guard, AST-based Condition evaluator, test inputs | Pending |
 | **Phase 7** | **Webhooks, Publishing & Live Monitoring** | Public webhook endpoints, rate limits, Socket.IO live updates, execution timeline | Pending |
