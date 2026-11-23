@@ -24,7 +24,7 @@ export class HealthController {
     const isDegraded = dbHealth.status === 'up' || redisHealth.status === 'up';
 
     if (!isHealthy) {
-      res.status(isDegraded ? HttpStatus.MULTI_STATUS : HttpStatus.SERVICE_UNAVAILABLE);
+      res.status(isDegraded ? HttpStatus.OK : HttpStatus.SERVICE_UNAVAILABLE);
     }
 
     return {
