@@ -16,8 +16,8 @@
 | **Phase 2** | **Design System & Application Shell** | Nexora theme, navigation layout, sidebar, page shells, empty/loading states | **Complete** |
 | **Phase 3** | **Authentication & Workspace Foundation** | User registration/login, JWT guards, workspace membership, protected routes | **Complete** |
 | **Phase 4** | **Workflow CRUD & Graph Persistence** | Workflow API, React Flow canvas, node palette, graph serializer, unsaved changes | **Complete** |
-| **Phase 5** | **Validation & First Execution Slice** | DAG cycle check, BullMQ runner, Manual Trigger + Logger execution vertical slice | **Pending Approval** |
-| **Phase 6** | **HTTP Request & Condition Nodes** | HTTP node with SSRF guard, AST-based Condition evaluator, test inputs | Pending |
+| **Phase 5** | **Validation & First Execution Slice** | DAG cycle check, BullMQ runner, Manual Trigger + Logger execution vertical slice | **Complete** |
+| **Phase 6** | **HTTP Request & Condition Nodes** | HTTP node with SSRF guard, AST-based Condition evaluator, test inputs | **Pending Approval** |
 | **Phase 7** | **Webhooks, Publishing & Live Monitoring** | Public webhook endpoints, rate limits, Socket.IO live updates, execution timeline | Pending |
 | **Phase 8** | **Credentials & Integrations Foundation** | AES-256-GCM encrypted credential vault, HTTP auth resolution, integration test UI | Pending |
 | **Phase 9** | **Testing, Hardening & Deployment** | End-to-end testing, security audits, Docker packaging, CI pipeline, setup docs | Pending |

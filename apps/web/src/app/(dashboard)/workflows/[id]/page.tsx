@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { WorkflowCanvas } from "@/components/canvas/WorkflowCanvas";
+import { ExecutionDetails } from "@/components/canvas/ExecutionPanel";
 import { WorkflowGraphDefinition } from "@nexora/shared";
 import { getAuthToken, getActiveWorkspace } from "@/lib/auth";
 import { ArrowLeft, AlertCircle, Loader2 } from "lucide-react";
@@ -17,6 +18,8 @@ export default function WorkflowEditorPage() {
   const [workflow, setWorkflow] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isRunning, setIsRunning] = useState(false);
+  const [currentExecution, setCurrentExecution] = useState<ExecutionDetails | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -83,6 +86,87 @@ export default function WorkflowEditorPage() {
     }
   };
 
+  const pollExecution = async (executionId: string) => {
+    const token = getAuthToken();
+    const workspace = getActiveWorkspace();
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
+
+    let attempts = 0;
+    const maxAttempts = 20;
+
+    const interval = setInterval(async () => {
+      attempts++;
+      try {
+        const res = await fetch(`${apiUrl}/executions/${executionId}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "x-workspace-id": workspace?.id || "",
+          },
+        });
+
+        if (res.ok) {
+          const data: ExecutionDetails = await res.json();
+          setCurrentExecution(data);
+
+          if (data.status === "SUCCEEDED" || data.status === "FAILED" || attempts >= maxAttempts) {
+            clearInterval(interval);
+            setIsRunning(false);
+          }
+        }
+      } catch {
+        if (attempts >= maxAttempts) {
+          clearInterval(interval);
+          setIsRunning(false);
+        }
+      }
+    }, 800);
+  };
+
+  const handleRunWorkflow = async () => {
+    setIsRunning(true);
+    try {
+      const token = getAuthToken();
+      const workspace = getActiveWorkspace();
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
+
+      const res = await fetch(`${apiUrl}/workflows/${workflowId}/run`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "x-workspace-id": workspace?.id || "",
+        },
+        body: JSON.stringify({
+          input: {
+            source: "canvas_run_button",
+            timestamp: new Date().toISOString(),
+          },
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        const msg = Array.isArray(errData.errors) ? errData.errors.join("; ") : errData.message;
+        throw new Error(msg || "Execution failed to start");
+      }
+
+      const runData = await res.json();
+      setCurrentExecution({
+        id: runData.executionId,
+        workflowId: runData.workflowId,
+        status: "QUEUED",
+        createdAt: runData.createdAt,
+        nodeExecutions: [],
+      });
+
+      // Poll execution status
+      pollExecution(runData.executionId);
+    } catch (err: any) {
+      alert(`Run error: ${err.message}`);
+      setIsRunning(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center bg-[#101827] text-center p-6">
@@ -118,7 +202,10 @@ export default function WorkflowEditorPage() {
         workflowStatus={workflow.status}
         initialDefinition={workflow.definition}
         onSave={handleSave}
+        onRunWorkflow={handleRunWorkflow}
         isSaving={isSaving}
+        isRunning={isRunning}
+        currentExecution={currentExecution}
       />
     </div>
   );

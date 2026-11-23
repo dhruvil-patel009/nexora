@@ -16,6 +16,7 @@ import "@xyflow/react/dist/style.css";
 import { nodeTypes } from "./nodes";
 import { NodePalette } from "./NodePalette";
 import { NodeConfigDrawer } from "./NodeConfigDrawer";
+import { ExecutionPanel, ExecutionDetails } from "./ExecutionPanel";
 import { NodeType, WorkflowGraphDefinition } from "@nexora/shared";
 import { Save, Play, Check } from "lucide-react";
 import { Button } from "../ui/Button";
@@ -26,7 +27,10 @@ interface WorkflowCanvasProps {
   workflowName: string;
   workflowStatus: string;
   onSave: (definition: WorkflowGraphDefinition) => Promise<void>;
+  onRunWorkflow: () => Promise<void>;
   isSaving?: boolean;
+  isRunning?: boolean;
+  currentExecution?: ExecutionDetails | null;
 }
 
 export function WorkflowCanvas({
@@ -35,7 +39,10 @@ export function WorkflowCanvas({
   workflowName,
   workflowStatus,
   onSave,
+  onRunWorkflow,
   isSaving = false,
+  isRunning = false,
+  currentExecution = null,
 }: WorkflowCanvasProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>(
     (initialDefinition?.nodes as any[]) || []
@@ -46,6 +53,7 @@ export function WorkflowCanvas({
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [isExecutionPanelOpen, setIsExecutionPanelOpen] = useState(false);
 
   const onConnect = useCallback(
     (connection: Connection) => {
@@ -121,8 +129,13 @@ export function WorkflowCanvas({
     setTimeout(() => setSaveSuccess(false), 2500);
   };
 
+  const handleRunClick = async () => {
+    setIsExecutionPanelOpen(true);
+    await onRunWorkflow();
+  };
+
   return (
-    <div className="flex flex-col h-full w-full bg-[#101827]">
+    <div className="flex flex-col h-full w-full bg-[#101827] relative">
       {/* Canvas Top Bar */}
       <div className="h-14 px-4 border-b border-[#1E293B] bg-[#101827]/90 backdrop-blur-md flex items-center justify-between z-20 shrink-0">
         <div className="flex items-center gap-3">
@@ -156,7 +169,13 @@ export function WorkflowCanvas({
             <span>Save</span>
           </Button>
 
-          <Button size="sm" variant="primary" className="gap-1.5">
+          <Button
+            size="sm"
+            variant="primary"
+            onClick={handleRunClick}
+            isLoading={isRunning}
+            className="gap-1.5"
+          >
             <Play className="w-3.5 h-3.5 fill-current" />
             <span>Run Workflow</span>
           </Button>
@@ -193,6 +212,13 @@ export function WorkflowCanvas({
           onClose={() => setSelectedNode(null)}
           onUpdateConfig={handleUpdateNodeConfig}
           onDeleteNode={handleDeleteNode}
+        />
+
+        {/* Execution Results Drawer */}
+        <ExecutionPanel
+          execution={currentExecution}
+          isOpen={isExecutionPanelOpen}
+          onClose={() => setIsExecutionPanelOpen(false)}
         />
       </div>
     </div>
