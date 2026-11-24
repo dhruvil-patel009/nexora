@@ -33,6 +33,8 @@ export interface WorkflowEdge {
   target: string;
   sourceHandle?: string | null;
   targetHandle?: string | null;
+  animated?: boolean;
+  style?: Record<string, any>;
 }
 
 export interface WorkflowGraphDefinition {

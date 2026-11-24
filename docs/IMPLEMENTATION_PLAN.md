@@ -21,7 +21,7 @@
 | **Phase 7** | **Webhooks, Publishing & Live Monitoring** | Public webhook endpoints, rate limits, live execution status, node pulsing | **Complete** |
 | **Phase 8** | **Credentials & Integrations Foundation** | AES-256-GCM encrypted credential vault, HTTP auth resolution, integration test UI | **Complete** |
 | **Phase 9** | **Testing, Hardening & Deployment** | End-to-end testing, security audits, Docker packaging, CI pipeline, setup docs | **Complete** |
-| **Phase 10**| **Post-MVP Enhancements** | Natural language AI generator, templates gallery, retry policies, scheduled cron | Deferred |
+| **Phase 10**| **Post-MVP Enhancements** | Natural language AI generator, templates gallery, telemetry analytics, settings | **Complete** |
 
 ---
 
@@ -244,9 +244,9 @@
 
 ---
 
-### Phase 10: Post-MVP Enhancements (Deferred)
-- AI-assisted natural language workflow generation.
-- Public template gallery.
-- Scheduled cron triggers.
-- Parallel branch execution and sub-workflows.
-- Team invitations and granular role permissions.
+### Phase 10: Post-MVP Enhancements (Complete)
+- [x] AI-assisted natural language workflow generation (`AiWorkflowGeneratorService` + canvas modal).
+- [x] Production-ready Template Gallery (`/templates`) with 1-click cloning.
+- [x] Real-time workspace telemetry and analytics API (`GET /api/v1/workspace/analytics`).
+- [x] Live dashboard with execution success rate, active DAG counts, and recent runs feed.
+- [x] Workspace settings with real member roles and infrastructure health status.

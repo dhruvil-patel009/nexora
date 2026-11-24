@@ -47,6 +47,16 @@ export class WorkflowsController {
     return this.workflowsService.create(workspaceId, dto);
   }
 
+  @Post('generate-ai')
+  @ApiOperation({ summary: 'Synthesize a valid DAG workflow from natural language prompt' })
+  @ApiResponse({ status: 201, description: 'Workflow generated and saved to workspace' })
+  async generateAi(
+    @CurrentWorkspace('id') workspaceId: string,
+    @Body() payload: { prompt: string; name?: string },
+  ) {
+    return this.workflowsService.generateFromAi(workspaceId, payload.prompt, payload.name);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Fetch single workflow with full graph definition' })
   @ApiResponse({ status: 200, description: 'Workflow retrieved' })

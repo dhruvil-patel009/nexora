@@ -7,6 +7,7 @@ import {
 import * as crypto from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ValidatorService } from '../engine/validator.service';
+import { AiWorkflowGeneratorService } from './ai-workflow-generator.service';
 import { CreateWorkflowDto } from './dto/create-workflow.dto';
 import { UpdateWorkflowDto } from './dto/update-workflow.dto';
 import { QueryWorkflowDto } from './dto/query-workflow.dto';
@@ -20,7 +21,42 @@ export class WorkflowsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly validator: ValidatorService,
+    private readonly aiGenerator: AiWorkflowGeneratorService,
   ) {}
+
+  async generateFromAi(workspaceId: string, prompt: string, customName?: string) {
+    const generated = this.aiGenerator.generateFromPrompt(prompt);
+    const name = customName?.trim() || generated.name;
+
+    const workflow = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.workflow.create({
+        data: {
+          workspaceId,
+          name,
+          description: generated.description,
+          status: 'DRAFT',
+          definition: generated.definition as any,
+          currentVersion: 1,
+        },
+      });
+
+      await tx.workflowVersion.create({
+        data: {
+          workflowId: created.id,
+          version: 1,
+          definition: generated.definition as any,
+        },
+      });
+
+      return created;
+    });
+
+    this.logger.log(`Workflow generated from AI prompt: "${workflow.name}" (${workflow.id})`);
+    return {
+      workflow,
+      summary: generated.summary,
+    };
+  }
 
   async list(workspaceId: string, query: QueryWorkflowDto) {
     const where: any = { workspaceId };

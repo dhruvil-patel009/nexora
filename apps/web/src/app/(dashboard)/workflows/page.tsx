@@ -7,7 +7,8 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { Workflow, Search, Plus, Trash2, ArrowRight, X, AlertCircle } from "lucide-react";
+import { Workflow, Search, Plus, Trash2, ArrowRight, X, AlertCircle, Sparkles } from "lucide-react";
+import { AiGeneratorModal } from "@/components/canvas/AiGeneratorModal";
 import { getAuthToken, getActiveWorkspace } from "@/lib/auth";
 
 interface WorkflowItem {
@@ -27,6 +28,7 @@ function WorkflowsContent() {
   const [search, setSearch] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [isCreating, setIsCreating] = useState(false);
@@ -145,6 +147,26 @@ function WorkflowsContent() {
               placeholder="Search workflows by name..."
               className="w-full pl-9 pr-4 py-1.5 bg-[#101827] border border-[#2A4365] rounded-lg text-xs text-[#F8FAFC] placeholder-[#64748B] focus:outline-none focus:border-[#22D3EE]"
             />
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setIsAiModalOpen(true)}
+              className="gap-1.5 border-[#8B5CF6]/40 text-[#A78BFA] hover:text-white hover:border-[#8B5CF6] text-xs"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-[#8B5CF6]" />
+              <span>Generate with AI</span>
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setIsModalOpen(true)}
+              className="gap-1.5 text-xs"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>New Workflow</span>
+            </Button>
           </div>
         </div>
 
@@ -275,6 +297,12 @@ function WorkflowsContent() {
           </div>
         </div>
       )}
+      {/* AI Workflow Generator Modal */}
+      <AiGeneratorModal
+        isOpen={isAiModalOpen}
+        onClose={() => setIsAiModalOpen(false)}
+        onGenerated={() => fetchWorkflows()}
+      />
     </>
   );
 }

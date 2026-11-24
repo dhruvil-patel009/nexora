@@ -9,6 +9,7 @@ import { EngineModule } from './modules/engine/engine.module';
 import { ExecutionsModule } from './modules/executions/executions.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { CredentialsModule } from './modules/credentials/credentials.module';
+import { WorkspaceModule } from './modules/workspace/workspace.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { CredentialsModule } from './modules/credentials/credentials.module';
     ExecutionsModule,
     WebhooksModule,
     CredentialsModule,
+    WorkspaceModule,
   ],
 })
 export class AppModule {}
