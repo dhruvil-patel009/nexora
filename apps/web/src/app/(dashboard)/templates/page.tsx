@@ -15,7 +15,12 @@ import {
   Terminal,
   Search,
   Check,
-  Loader2,
+  Bot,
+  CreditCard,
+  Database,
+  Bell,
+  Mail,
+  ShoppingBag,
 } from "lucide-react";
 import { getAuthToken, getActiveWorkspace } from "@/lib/auth";
 import { useRouter } from "next/navigation";
@@ -24,7 +29,7 @@ import { WorkflowGraphDefinition } from "@nexora/shared";
 interface WorkflowTemplate {
   id: string;
   name: string;
-  category: "Sales & Marketing" | "DevOps & Monitoring" | "Developer Tools" | "Customer Support" | "Security";
+  category: "Sales & Marketing" | "DevOps & Monitoring" | "Developer Tools" | "Customer Support" | "E-Commerce & Billing" | "AI & Machine Learning" | "Data Pipelines";
   description: string;
   badge?: string;
   nodeTypes: Array<{ label: string; icon: any; color: string }>;
@@ -89,6 +94,339 @@ const templates: WorkflowTemplate[] = [
         { id: "e1", source: "webhook_lead", target: "check_score", animated: true },
         { id: "e2", source: "check_score", target: "notify_crm", sourceHandle: "true", animated: true, style: { stroke: "#22C55E" } },
         { id: "e3", source: "check_score", target: "log_standard", sourceHandle: "false", animated: true, style: { stroke: "#EF4444" } },
+      ],
+    },
+  },
+  {
+    id: "ai-sentiment-routing",
+    name: "AI Sentiment Analysis & Urgent Escalation",
+    category: "AI & Machine Learning",
+    badge: "Recommended",
+    description: "Queries OpenAI GPT to analyze incoming customer feedback. Automatically escalates negative reviews to Slack on-call.",
+    nodeTypes: [
+      { label: "Webhook", icon: Webhook, color: "#22D3EE" },
+      { label: "OpenAI GPT", icon: Bot, color: "#A855F7" },
+      { label: "Condition", icon: GitFork, color: "#8B5CF6" },
+      { label: "Slack Alert", icon: Globe, color: "#EF4444" },
+    ],
+    definition: {
+      nodes: [
+        {
+          id: "review_inbound",
+          type: "webhook-trigger",
+          position: { x: 350, y: 100 },
+          data: { label: "Customer Review Webhook", config: {} },
+        },
+        {
+          id: "openai_sentiment",
+          type: "http-request",
+          position: { x: 350, y: 220 },
+          data: {
+            label: "Analyze Sentiment via OpenAI",
+            config: {
+              method: "POST",
+              url: "https://api.openai.com/v1/chat/completions",
+              headers: { Authorization: "Bearer {{credentials.OPENAI_API_KEY}}" },
+              body: { model: "gpt-4o-mini", messages: [{ role: "user", content: "Classify sentiment: {{trigger.text}}" }] },
+            },
+          },
+        },
+        {
+          id: "check_negative",
+          type: "condition",
+          position: { x: 350, y: 350 },
+          data: {
+            label: "Sentiment == negative",
+            config: { variable: "trigger.sentiment", operator: "equals", value: "negative" },
+          },
+        },
+        {
+          id: "alert_slack_urgent",
+          type: "http-request",
+          position: { x: 180, y: 490 },
+          data: {
+            label: "Post to Slack Urgent Channel",
+            config: {
+              method: "POST",
+              url: "https://hooks.slack.com/services/example",
+              body: { text: "🚨 Urgent Customer Escalation: {{trigger.text}}" },
+            },
+          },
+        },
+        {
+          id: "log_positive",
+          type: "logger",
+          position: { x: 520, y: 490 },
+          data: {
+            label: "Log Positive Feedback",
+            config: { message: "Positive sentiment recorded: {{trigger.text}}" },
+          },
+        },
+      ],
+      edges: [
+        { id: "e1", source: "review_inbound", target: "openai_sentiment", animated: true },
+        { id: "e2", source: "openai_sentiment", target: "check_negative", animated: true },
+        { id: "e3", source: "check_negative", target: "alert_slack_urgent", sourceHandle: "true", animated: true, style: { stroke: "#22C55E" } },
+        { id: "e4", source: "check_negative", target: "log_positive", sourceHandle: "false", animated: true, style: { stroke: "#EF4444" } },
+      ],
+    },
+  },
+  {
+    id: "ecommerce-order-fulfillment",
+    name: "E-Commerce Order Fulfillment & Expedited Routing",
+    category: "E-Commerce & Billing",
+    badge: "Popular",
+    description: "Processes checkout webhooks. High-value orders ($150+) are flagged for VIP priority fulfillment with email notification.",
+    nodeTypes: [
+      { label: "Webhook", icon: Webhook, color: "#22D3EE" },
+      { label: "Condition", icon: GitFork, color: "#8B5CF6" },
+      { label: "Shopify API", icon: ShoppingBag, color: "#38BDF8" },
+      { label: "Resend Email", icon: Mail, color: "#22C55E" },
+    ],
+    definition: {
+      nodes: [
+        {
+          id: "order_webhook",
+          type: "webhook-trigger",
+          position: { x: 350, y: 100 },
+          data: { label: "Stripe / Shopify Order", config: {} },
+        },
+        {
+          id: "check_high_value",
+          type: "condition",
+          position: { x: 350, y: 230 },
+          data: {
+            label: "Total > $150",
+            config: { variable: "trigger.total_amount", operator: "greater_than", value: "150" },
+          },
+        },
+        {
+          id: "expedited_fulfillment",
+          type: "http-request",
+          position: { x: 180, y: 380 },
+          data: {
+            label: "Tag VIP Priority Order",
+            config: {
+              method: "POST",
+              url: "https://api.example.com/orders/expedite",
+              body: { orderId: "{{trigger.order_id}}", priority: "EXPRESS_VIP" },
+            },
+          },
+        },
+        {
+          id: "send_vip_confirmation",
+          type: "http-request",
+          position: { x: 180, y: 500 },
+          data: {
+            label: "Send VIP Confirmation Email",
+            config: {
+              method: "POST",
+              url: "https://api.resend.com/emails",
+              headers: { Authorization: "Bearer {{credentials.RESEND_API_KEY}}" },
+              body: { to: "{{trigger.customer_email}}", subject: "Your VIP Order is Being Prepared!" },
+            },
+          },
+        },
+        {
+          id: "standard_logger",
+          type: "logger",
+          position: { x: 520, y: 380 },
+          data: {
+            label: "Process Standard Order",
+            config: { message: "Standard order queued for fulfillment: {{trigger.order_id}}" },
+          },
+        },
+      ],
+      edges: [
+        { id: "e1", source: "order_webhook", target: "check_high_value", animated: true },
+        { id: "e2", source: "check_high_value", target: "expedited_fulfillment", sourceHandle: "true", animated: true, style: { stroke: "#22C55E" } },
+        { id: "e3", source: "expedited_fulfillment", target: "send_vip_confirmation", animated: true },
+        { id: "e4", source: "check_high_value", target: "standard_logger", sourceHandle: "false", animated: true, style: { stroke: "#EF4444" } },
+      ],
+    },
+  },
+  {
+    id: "incident-escalation-pagerduty",
+    name: "Automated On-Call Incident Escalation",
+    category: "DevOps & Monitoring",
+    badge: "Critical",
+    description: "Catches critical monitoring alerts (Datadog/Sentry), triggers high-urgency PagerDuty incidents, and notifies Slack war-room.",
+    nodeTypes: [
+      { label: "Webhook", icon: Webhook, color: "#22D3EE" },
+      { label: "PagerDuty Event", icon: Bell, color: "#EF4444" },
+      { label: "Delay (5s)", icon: Clock, color: "#A855F7" },
+      { label: "Slack War-Room", icon: Globe, color: "#38BDF8" },
+    ],
+    definition: {
+      nodes: [
+        {
+          id: "alert_inbound",
+          type: "webhook-trigger",
+          position: { x: 350, y: 100 },
+          data: { label: "Inbound Sentry Alert", config: {} },
+        },
+        {
+          id: "trigger_pagerduty",
+          type: "http-request",
+          position: { x: 350, y: 220 },
+          data: {
+            label: "Trigger PagerDuty Incident",
+            config: {
+              method: "POST",
+              url: "https://events.pagerduty.com/v2/enqueue",
+              headers: { "Content-Type": "application/json" },
+              body: { routing_key: "{{credentials.PAGERDUTY_ROUTING_KEY}}", event_action: "trigger", payload: { summary: "{{trigger.error_message}}", severity: "critical" } },
+            },
+          },
+        },
+        {
+          id: "pause_stabilize",
+          type: "delay",
+          position: { x: 350, y: 350 },
+          data: { label: "Wait 5 Seconds", config: { durationSeconds: 5 } },
+        },
+        {
+          id: "slack_warroom",
+          type: "http-request",
+          position: { x: 350, y: 470 },
+          data: {
+            label: "Post to Slack #war-room",
+            config: {
+              method: "POST",
+              url: "{{credentials.SLACK_WEBHOOK_URL}}",
+              body: { text: "🚨 High Urgency Incident Triggered on PagerDuty: {{trigger.error_message}}" },
+            },
+          },
+        },
+      ],
+      edges: [
+        { id: "e1", source: "alert_inbound", target: "trigger_pagerduty", animated: true },
+        { id: "e2", source: "trigger_pagerduty", target: "pause_stabilize", animated: true },
+        { id: "e3", source: "pause_stabilize", target: "slack_warroom", animated: true },
+      ],
+    },
+  },
+  {
+    id: "form-to-airtable-discord",
+    name: "Form Intake to Airtable & Discord Team Ping",
+    category: "Developer Tools",
+    description: "Receives form submissions, inserts a row into your Airtable Base using personal access tokens, and pings your Discord team.",
+    nodeTypes: [
+      { label: "Webhook", icon: Webhook, color: "#22D3EE" },
+      { label: "Airtable POST", icon: Database, color: "#38BDF8" },
+      { label: "Discord Ping", icon: Globe, color: "#8B5CF6" },
+      { label: "Logger", icon: Terminal, color: "#F59E0B" },
+    ],
+    definition: {
+      nodes: [
+        {
+          id: "form_submission",
+          type: "webhook-trigger",
+          position: { x: 350, y: 100 },
+          data: { label: "Contact Form Webhook", config: {} },
+        },
+        {
+          id: "insert_airtable",
+          type: "http-request",
+          position: { x: 350, y: 220 },
+          data: {
+            label: "Create Airtable Record",
+            config: {
+              method: "POST",
+              url: "https://api.airtable.com/v0/appExample/Leads",
+              headers: { Authorization: "Bearer {{credentials.AIRTABLE_API_KEY}}", "Content-Type": "application/json" },
+              body: { fields: { Name: "{{trigger.name}}", Email: "{{trigger.email}}", Message: "{{trigger.message}}" } },
+            },
+          },
+        },
+        {
+          id: "discord_notify",
+          type: "http-request",
+          position: { x: 350, y: 350 },
+          data: {
+            label: "Ping Discord Channel",
+            config: {
+              method: "POST",
+              url: "{{credentials.DISCORD_WEBHOOK_URL}}",
+              body: { content: "📩 New Form Submission from {{trigger.name}} ({{trigger.email}})" },
+            },
+          },
+        },
+        {
+          id: "log_complete",
+          type: "logger",
+          position: { x: 350, y: 470 },
+          data: { label: "Log Form Archived", config: { message: "Form sync finished: {{trigger.email}}" } },
+        },
+      ],
+      edges: [
+        { id: "e1", source: "form_submission", target: "insert_airtable", animated: true },
+        { id: "e2", source: "insert_airtable", target: "discord_notify", animated: true },
+        { id: "e3", source: "discord_notify", target: "log_complete", animated: true },
+      ],
+    },
+  },
+  {
+    id: "stripe-churn-dunning",
+    name: "Stripe Subscription Churn Prevention & Dunning",
+    category: "E-Commerce & Billing",
+    description: "Detects failed subscription payments from Stripe. Immediately triggers payment retry emails and logs grace period status.",
+    nodeTypes: [
+      { label: "Webhook", icon: Webhook, color: "#22D3EE" },
+      { label: "Condition", icon: GitFork, color: "#8B5CF6" },
+      { label: "Resend Dunning", icon: Mail, color: "#22C55E" },
+      { label: "Offboard Survey", icon: Globe, color: "#F59E0B" },
+    ],
+    definition: {
+      nodes: [
+        {
+          id: "stripe_sub_event",
+          type: "webhook-trigger",
+          position: { x: 350, y: 100 },
+          data: { label: "Stripe Subscription Deleted", config: {} },
+        },
+        {
+          id: "check_payment_fail",
+          type: "condition",
+          position: { x: 350, y: 230 },
+          data: {
+            label: "Reason == payment_failed",
+            config: { variable: "trigger.cancellation_reason", operator: "equals", value: "payment_failed" },
+          },
+        },
+        {
+          id: "send_dunning_email",
+          type: "http-request",
+          position: { x: 180, y: 380 },
+          data: {
+            label: "Send Dunning Recovery Email",
+            config: {
+              method: "POST",
+              url: "https://api.resend.com/emails",
+              headers: { Authorization: "Bearer {{credentials.RESEND_API_KEY}}" },
+              body: { to: "{{trigger.customer_email}}", subject: "Action Required: Update payment method to keep your account active" },
+            },
+          },
+        },
+        {
+          id: "send_exit_survey",
+          type: "http-request",
+          position: { x: 520, y: 380 },
+          data: {
+            label: "Dispatch Exit Feedback Survey",
+            config: {
+              method: "POST",
+              url: "https://api.resend.com/emails",
+              headers: { Authorization: "Bearer {{credentials.RESEND_API_KEY}}" },
+              body: { to: "{{trigger.customer_email}}", subject: "We're sorry to see you go! Help us improve." },
+            },
+          },
+        },
+      ],
+      edges: [
+        { id: "e1", source: "stripe_sub_event", target: "check_payment_fail", animated: true },
+        { id: "e2", source: "check_payment_fail", target: "send_dunning_email", sourceHandle: "true", animated: true, style: { stroke: "#22C55E" } },
+        { id: "e3", source: "check_payment_fail", target: "send_exit_survey", sourceHandle: "false", animated: true, style: { stroke: "#EF4444" } },
       ],
     },
   },
@@ -219,6 +557,74 @@ const templates: WorkflowTemplate[] = [
     },
   },
   {
+    id: "data-sync-etl",
+    name: "Automated Data Ingestion & Sync Pipeline",
+    category: "Data Pipelines",
+    description: "Fetches remote batch data via authenticated HTTP GET, validates response status, and posts normalized rows to internal warehouse.",
+    nodeTypes: [
+      { label: "Manual Trigger", icon: Terminal, color: "#22D3EE" },
+      { label: "Fetch API", icon: Globe, color: "#38BDF8" },
+      { label: "Condition", icon: GitFork, color: "#8B5CF6" },
+      { label: "Ingest POST", icon: Database, color: "#22C55E" },
+    ],
+    definition: {
+      nodes: [
+        {
+          id: "sync_trigger",
+          type: "manual-trigger",
+          position: { x: 350, y: 100 },
+          data: { label: "Trigger ETL Ingestion", config: {} },
+        },
+        {
+          id: "fetch_remote",
+          type: "http-request",
+          position: { x: 350, y: 220 },
+          data: {
+            label: "Fetch External Records",
+            config: { method: "GET", url: "https://api.example.com/data/export" },
+          },
+        },
+        {
+          id: "check_success",
+          type: "condition",
+          position: { x: 350, y: 350 },
+          data: {
+            label: "Status == 200",
+            config: { variable: "steps.fetch_remote.status", operator: "equals", value: "200" },
+          },
+        },
+        {
+          id: "post_warehouse",
+          type: "http-request",
+          position: { x: 180, y: 490 },
+          data: {
+            label: "Bulk Ingest to Warehouse",
+            config: {
+              method: "POST",
+              url: "https://warehouse.example.internal/ingest",
+              body: { payload: "{{steps.fetch_remote.data}}" },
+            },
+          },
+        },
+        {
+          id: "log_sync_fail",
+          type: "logger",
+          position: { x: 520, y: 490 },
+          data: {
+            label: "Log Sync Failure",
+            config: { message: "ETL Sync failed with HTTP status {{steps.fetch_remote.status}}" },
+          },
+        },
+      ],
+      edges: [
+        { id: "e1", source: "sync_trigger", target: "fetch_remote", animated: true },
+        { id: "e2", source: "fetch_remote", target: "check_success", animated: true },
+        { id: "e3", source: "check_success", target: "post_warehouse", sourceHandle: "true", animated: true, style: { stroke: "#22C55E" } },
+        { id: "e4", source: "check_success", target: "log_sync_fail", sourceHandle: "false", animated: true, style: { stroke: "#EF4444" } },
+      ],
+    },
+  },
+  {
     id: "delayed-autoresponder",
     name: "Delayed Auto-Responder & Pipeline Check",
     category: "Customer Support",
@@ -279,8 +685,11 @@ const categories = [
   "All",
   "Sales & Marketing",
   "DevOps & Monitoring",
+  "AI & Machine Learning",
+  "E-Commerce & Billing",
   "Developer Tools",
   "Customer Support",
+  "Data Pipelines",
 ];
 
 export default function TemplatesPage() {
@@ -346,7 +755,7 @@ export default function TemplatesPage() {
     <>
       <TopBar
         title="Workflow Templates Gallery"
-        subtitle="Pre-configured DAG blueprints to accelerate your automation architecture."
+        subtitle="10 production-ready DAG blueprints to accelerate your automation architecture."
       />
 
       <main className="p-6 sm:p-8 space-y-6 max-w-7xl">
@@ -356,7 +765,7 @@ export default function TemplatesPage() {
             <Sparkles className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-sm font-semibold text-white">Production-Ready Blueprints</h2>
+            <h2 className="text-sm font-semibold text-white">Production-Ready Automation Blueprints ({templates.length})</h2>
             <p className="text-xs text-[#94A3B8] leading-relaxed mt-0.5">
               Click <strong className="text-white">Use Template</strong> on any blueprint to clone a verified, DAG-validated automation directly into your workspace. Modify handles, secrets, or condition values directly in the canvas.
             </p>
@@ -403,7 +812,7 @@ export default function TemplatesPage() {
                     {template.category}
                   </span>
                   {template.badge && (
-                    <Badge variant={template.badge === "Popular" ? "cyan" : "violet"}>
+                    <Badge variant={template.badge === "Popular" ? "cyan" : template.badge === "Recommended" ? "violet" : "error"}>
                       {template.badge}
                     </Badge>
                   )}

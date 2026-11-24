@@ -12,12 +12,20 @@ import {
   GitBranch,
   MessageSquare,
   Terminal,
-  ExternalLink,
   Plus,
   Lock,
   X,
   Check,
   AlertCircle,
+  Bot,
+  CreditCard,
+  Database,
+  Mail,
+  Smartphone,
+  Bell,
+  ShoppingBag,
+  MessageCircle,
+  Search,
 } from "lucide-react";
 import { getAuthToken, getActiveWorkspace } from "@/lib/auth";
 import Link from "next/link";
@@ -29,11 +37,10 @@ interface IntegrationConfig {
   description: string;
   icon: any;
   status: string;
-  badgeVariant: "success" | "cyan" | "default";
+  badgeVariant: "success" | "cyan" | "default" | "violet" | "warning";
   defaultKeyName: string;
   defaultType: "API_KEY" | "BEARER_TOKEN" | "CUSTOM_HEADER";
   placeholder: string;
-  guideUrl?: string;
 }
 
 const availableIntegrations: IntegrationConfig[] = [
@@ -62,6 +69,30 @@ const availableIntegrations: IntegrationConfig[] = [
     placeholder: "Paste any API token or Bearer key...",
   },
   {
+    id: "openai",
+    name: "OpenAI / LLM API",
+    category: "AI & Machine Learning",
+    description: "Query GPT models, generate embeddings, or run structured reasoning over inbound automation context.",
+    icon: Bot,
+    status: "Connect via Vault",
+    badgeVariant: "violet",
+    defaultKeyName: "OPENAI_API_KEY",
+    defaultType: "BEARER_TOKEN",
+    placeholder: "sk-proj-xxxxxxxxxxxxxxxxxxxxxxxx",
+  },
+  {
+    id: "stripe",
+    name: "Stripe Payments & Billing",
+    category: "E-Commerce & Payments",
+    description: "Ingest checkout, subscription, and charge webhooks, or issue programmatic refunds and customer updates.",
+    icon: CreditCard,
+    status: "Connect via Vault",
+    badgeVariant: "cyan",
+    defaultKeyName: "STRIPE_SECRET_KEY",
+    defaultType: "BEARER_TOKEN",
+    placeholder: "sk_live_51M0xxxxxxxxxxxxxxxxxxx",
+  },
+  {
     id: "slack",
     name: "Slack Incoming Webhook",
     category: "Notifications",
@@ -72,6 +103,18 @@ const availableIntegrations: IntegrationConfig[] = [
     defaultKeyName: "SLACK_WEBHOOK_URL",
     defaultType: "CUSTOM_HEADER",
     placeholder: "https://hooks.slack.com/services/T00/B00/XXXX",
+  },
+  {
+    id: "resend",
+    name: "Resend Transactional Email",
+    category: "Email & Marketing",
+    description: "Send automated transactional emails, welcome drip sequences, and OTP notifications to customers.",
+    icon: Mail,
+    status: "Connect via Vault",
+    badgeVariant: "cyan",
+    defaultKeyName: "RESEND_API_KEY",
+    defaultType: "BEARER_TOKEN",
+    placeholder: "re_xxxxxxxxxxxxxxxxxxxxxxxx",
   },
   {
     id: "github",
@@ -89,7 +132,7 @@ const availableIntegrations: IntegrationConfig[] = [
     id: "discord",
     name: "Discord Webhook",
     category: "Notifications",
-    description: "Send rich embed notifications to Discord community channels via webhook URLs.",
+    description: "Send rich embed notifications and team alerts to Discord community channels via webhook URLs.",
     icon: Send,
     status: "Connect via Vault",
     badgeVariant: "cyan",
@@ -97,15 +140,97 @@ const availableIntegrations: IntegrationConfig[] = [
     defaultType: "CUSTOM_HEADER",
     placeholder: "https://discord.com/api/webhooks/...",
   },
+  {
+    id: "airtable",
+    name: "Airtable REST API",
+    category: "Databases & Sheets",
+    description: "Create, query, and synchronize records in Airtable bases directly from workflow automation branches.",
+    icon: Database,
+    status: "Connect via Vault",
+    badgeVariant: "cyan",
+    defaultKeyName: "AIRTABLE_API_KEY",
+    defaultType: "BEARER_TOKEN",
+    placeholder: "patxxxxxxxxxxxxxxxx.xxxxxxxxxx",
+  },
+  {
+    id: "twilio",
+    name: "Twilio SMS & WhatsApp",
+    category: "Telephony & Alerts",
+    description: "Dispatch automated SMS alerts and high-priority on-call incident notifications via Twilio.",
+    icon: Smartphone,
+    status: "Connect via Vault",
+    badgeVariant: "warning",
+    defaultKeyName: "TWILIO_AUTH_TOKEN",
+    defaultType: "CUSTOM_HEADER",
+    placeholder: "Your Twilio Auth Token or Account SID",
+  },
+  {
+    id: "pagerduty",
+    name: "PagerDuty Event API v2",
+    category: "DevOps & Monitoring",
+    description: "Trigger, acknowledge, and resolve high-severity on-call incidents programmatically from workflow graphs.",
+    icon: Bell,
+    status: "Connect via Vault",
+    badgeVariant: "warning",
+    defaultKeyName: "PAGERDUTY_ROUTING_KEY",
+    defaultType: "CUSTOM_HEADER",
+    placeholder: "Your 32-character PagerDuty Integration Key",
+  },
+  {
+    id: "shopify",
+    name: "Shopify Admin API",
+    category: "E-Commerce & Payments",
+    description: "Synchronize inventory, automate order tags, and trigger custom fulfillment webhooks.",
+    icon: ShoppingBag,
+    status: "Connect via Vault",
+    badgeVariant: "cyan",
+    defaultKeyName: "SHOPIFY_ACCESS_TOKEN",
+    defaultType: "CUSTOM_HEADER",
+    placeholder: "shpat_xxxxxxxxxxxxxxxxxxxxxxxx",
+  },
+  {
+    id: "telegram",
+    name: "Telegram Bot API",
+    category: "Chatbots & Messaging",
+    description: "Send automated messages, broadcast alerts, and interact with private or group Telegram channels.",
+    icon: MessageCircle,
+    status: "Connect via Vault",
+    badgeVariant: "cyan",
+    defaultKeyName: "TELEGRAM_BOT_TOKEN",
+    defaultType: "API_KEY",
+    placeholder: "123456789:ABCdefGHIjklMNOpqrSTUvwxYZ",
+  },
+];
+
+const categories = [
+  "All",
+  "Triggers",
+  "AI & Machine Learning",
+  "Notifications",
+  "E-Commerce & Payments",
+  "Email & Marketing",
+  "Developer Tools",
+  "Databases & Sheets",
+  "DevOps & Monitoring",
 ];
 
 export default function IntegrationsPage() {
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedIntegration, setSelectedIntegration] = useState<IntegrationConfig | null>(null);
   const [secretValue, setSecretValue] = useState("");
   const [keyName, setKeyName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const filteredIntegrations = availableIntegrations.filter((intg) => {
+    const matchesCat = selectedCategory === "All" || intg.category === selectedCategory;
+    const matchesSearch =
+      intg.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      intg.description.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCat && matchesSearch;
+  });
 
   const openConnectModal = (integration: IntegrationConfig) => {
     setSelectedIntegration(integration);
@@ -169,16 +294,46 @@ export default function IntegrationsPage() {
         <div className="bg-[#172D43]/50 border border-[#22D3EE]/20 rounded-xl p-4 flex items-start gap-3">
           <Terminal className="w-5 h-5 text-[#22D3EE] shrink-0 mt-0.5" />
           <div className="space-y-1">
-            <h2 className="text-xs font-semibold text-white">Zero-Friction Integration Model</h2>
+            <h2 className="text-xs font-semibold text-white">Direct Zero-Trust Connectivity</h2>
             <p className="text-xs text-[#94A3B8] leading-relaxed">
-              Nexora does not simulate fake connections. Any third-party service (Slack, GitHub, Stripe, Discord) connects directly via the generic <span className="font-mono text-[#22D3EE]">HTTP Request</span> node or <span className="font-mono text-[#22D3EE]">Webhook Trigger</span> paired with encrypted credentials stored in your <span className="font-mono text-[#22D3EE]">Credentials Vault</span>.
+              Nexora connects directly to any external API using the generic <span className="font-mono text-[#22D3EE]">HTTP Request</span> node or <span className="font-mono text-[#22D3EE]">Webhook Trigger</span> paired with encrypted secrets vaulted with <span className="font-mono text-[#22D3EE]">AES-256-GCM</span>. Credentials resolve in worker memory and are permanently redacted from execution logs.
             </p>
+          </div>
+        </div>
+
+        {/* Filter and Search Bar */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shrink-0 ${
+                  selectedCategory === cat
+                    ? "bg-[#22D3EE] text-[#101827] font-semibold"
+                    : "bg-[#172D43]/40 text-[#94A3B8] hover:text-white border border-[#1E293B]"
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
+          <div className="relative max-w-xs w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#64748B]" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search integrations..."
+              className="w-full pl-9 pr-3 py-1.5 bg-[#101827] border border-[#2A4365] rounded-lg text-xs text-white placeholder-[#64748B] focus:outline-none focus:border-[#22D3EE]"
+            />
           </div>
         </div>
 
         {/* Integrations Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {availableIntegrations.map((integration) => {
+          {filteredIntegrations.map((integration) => {
             const Icon = integration.icon;
             const isBuiltIn = integration.id === "webhook" || integration.id === "http";
 
