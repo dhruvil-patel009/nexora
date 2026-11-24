@@ -1,6 +1,9 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import helmet from 'helmet';
+import * as crypto from 'crypto';
+import { Request, Response, NextFunction } from 'express';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -10,10 +13,26 @@ async function bootstrap() {
   const port = process.env.PORT || 4000;
   const apiPrefix = process.env.API_PREFIX || 'api/v1';
 
-  // Global API Prefix
+  // 1. Security Headers via Helmet
+  app.use(
+    helmet({
+      contentSecurityPolicy: false, // Disabled for Swagger UI compatibility
+      crossOriginEmbedderPolicy: false,
+    }),
+  );
+
+  // 2. Correlation Request-ID Tracking Middleware
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    const requestId = (req.headers['x-request-id'] as string) || crypto.randomUUID();
+    req.headers['x-request-id'] = requestId;
+    res.setHeader('x-request-id', requestId);
+    next();
+  });
+
+  // 3. Global API Prefix
   app.setGlobalPrefix(apiPrefix);
 
-  // Global Validation Pipe with strict whitelisting
+  // 4. Global Validation Pipe with strict whitelisting
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -22,13 +41,18 @@ async function bootstrap() {
     }),
   );
 
-  // CORS Configuration
+  // 5. Hardened CORS Configuration
   app.enableCors({
-    origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['http://localhost:3000'],
+    origin: process.env.CORS_ORIGIN
+      ? process.env.CORS_ORIGIN.split(',')
+      : ['http://localhost:3000', 'http://127.0.0.1:3000'],
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-workspace-id', 'x-request-id'],
+    exposedHeaders: ['x-request-id'],
     credentials: true,
   });
 
-  // Swagger OpenAPI Documentation
+  // 6. Swagger OpenAPI Documentation
   const swaggerConfig = new DocumentBuilder()
     .setTitle('NEXORA API')
     .setDescription('Automate Beyond Limits — Visual workflow automation and orchestration API')

@@ -20,7 +20,7 @@
 | **Phase 6** | **HTTP Request & Condition Nodes** | HTTP node with SSRF guard, AST-based Condition evaluator, test inputs | **Complete** |
 | **Phase 7** | **Webhooks, Publishing & Live Monitoring** | Public webhook endpoints, rate limits, live execution status, node pulsing | **Complete** |
 | **Phase 8** | **Credentials & Integrations Foundation** | AES-256-GCM encrypted credential vault, HTTP auth resolution, integration test UI | **Complete** |
-| **Phase 9** | **Testing, Hardening & Deployment** | End-to-end testing, security audits, Docker packaging, CI pipeline, setup docs | Pending |
+| **Phase 9** | **Testing, Hardening & Deployment** | End-to-end testing, security audits, Docker packaging, CI pipeline, setup docs | **Complete** |
 | **Phase 10**| **Post-MVP Enhancements** | Natural language AI generator, templates gallery, retry policies, scheduled cron | Deferred |
 
 ---
