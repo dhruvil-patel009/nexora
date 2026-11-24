@@ -49,11 +49,25 @@ jobs:
       - name: Install Monorepo Dependencies
         run: npm ci
 
+      - name: Build Shared Package
+        run: npm run build -w @nexora/shared
+
+      - name: Generate Prisma Client
+        run: npx prisma generate --schema=apps/api/prisma/schema.prisma
+
+      - name: Push Database Schema to Test PostgreSQL
+        run: npx prisma db push --schema=apps/api/prisma/schema.prisma --skip-generate
+        env:
+          DATABASE_URL: postgresql://nexora:nexora_ci_password@localhost:5432/nexora_test?schema=public
+
       - name: Static Typecheck Across All Workspaces
         run: npm run typecheck
 
       - name: Run Automated Test Suites (Vitest)
         run: npm test
+        env:
+          DATABASE_URL: postgresql://nexora:nexora_ci_password@localhost:5432/nexora_test?schema=public
+          REDIS_URL: redis://localhost:6379
 
       - name: Build All Workspaces
         run: npm run build
