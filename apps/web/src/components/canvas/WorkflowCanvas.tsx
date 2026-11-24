@@ -209,6 +209,7 @@ export function WorkflowCanvas({
         {/* Configuration Drawer */}
         <NodeConfigDrawer
           node={selectedNode}
+          workflowId={workflowId}
           onClose={() => setSelectedNode(null)}
           onUpdateConfig={handleUpdateNodeConfig}
           onDeleteNode={handleDeleteNode}

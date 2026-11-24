@@ -5,6 +5,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { ValidatorService } from './validator.service';
 import { WorkflowExecutionJobData } from './execution.queue';
 import { WorkflowGraphDefinition, WorkflowNode } from '@nexora/shared';
+import { HttpRequestHandler } from './node-handlers/http-request.handler';
+import { ConditionHandler } from './node-handlers/condition.handler';
 
 @Injectable()
 export class ExecutionWorkerService implements OnModuleInit, OnModuleDestroy {
@@ -105,6 +107,24 @@ export class ExecutionWorkerService implements OnModuleInit, OnModuleDestroy {
       steps: {},
     };
 
+    const skippedNodes = new Set<string>();
+    const edges = definition.edges || [];
+
+    // Helper to recursively mark downstream nodes as skipped
+    const markSubtreeSkipped = (startNodeId: string) => {
+      const queue = [startNodeId];
+      while (queue.length > 0) {
+        const currentId = queue.shift()!;
+        skippedNodes.add(currentId);
+        const outbound = edges.filter((e) => e.source === currentId);
+        for (const edge of outbound) {
+          if (!skippedNodes.has(edge.target)) {
+            queue.push(edge.target);
+          }
+        }
+      }
+    };
+
     let executionFailed = false;
     let finalErrorSummary: string | null = null;
 
@@ -112,6 +132,23 @@ export class ExecutionWorkerService implements OnModuleInit, OnModuleDestroy {
     for (const nodeId of validation.executionOrder) {
       const node = nodeMap.get(nodeId);
       if (!node) continue;
+
+      // If node is on a disabled branch, mark SKIPPED and do not execute
+      if (skippedNodes.has(nodeId)) {
+        await this.prisma.nodeExecution.create({
+          data: {
+            executionId,
+            nodeId: node.id,
+            nodeType: node.type,
+            status: 'SKIPPED',
+            inputData: { ...executionContext },
+            startedAt: new Date(),
+            finishedAt: new Date(),
+            durationMs: 0,
+          },
+        });
+        continue;
+      }
 
       const nodeStartTime = Date.now();
 
@@ -146,7 +183,8 @@ export class ExecutionWorkerService implements OnModuleInit, OnModuleDestroy {
             break;
 
           case 'logger':
-            const logMsg = node.data?.config?.message || 'Execution milestone reached';
+            const rawMsg = String((node.data?.config as any)?.message || 'Execution milestone reached');
+            const logMsg = HttpRequestHandler.interpolate(rawMsg, executionContext);
             nodeOutput = {
               message: logMsg,
               loggedAt: new Date().toISOString(),
@@ -158,7 +196,6 @@ export class ExecutionWorkerService implements OnModuleInit, OnModuleDestroy {
 
           case 'delay':
             const delaySec = Number(node.data?.config?.durationSeconds) || 1;
-            // Short test delay (capped at 5s during worker loop)
             const safeDelay = Math.min(delaySec, 5);
             await new Promise((resolve) => setTimeout(resolve, safeDelay * 1000));
             nodeOutput = {
@@ -168,21 +205,28 @@ export class ExecutionWorkerService implements OnModuleInit, OnModuleDestroy {
             break;
 
           case 'http-request':
-            nodeOutput = {
-              status: 200,
-              statusText: 'OK',
-              simulated: true,
-              url: node.data?.config?.url || 'https://api.example.com',
-              data: { success: true },
-            };
+            nodeOutput = await HttpRequestHandler.execute(
+              (node.data?.config as any) || {},
+              executionContext,
+            );
             break;
 
           case 'condition':
-            nodeOutput = {
-              result: true,
-              operator: node.data?.config?.operator || 'equals',
-              branch: 'true',
-            };
+            nodeOutput = ConditionHandler.evaluate(
+              (node.data?.config as any) || {},
+              executionContext,
+            );
+
+            // Conditional branch routing: prune edges that do not match active branch
+            const activeBranch = nodeOutput.branch; // 'true' or 'false'
+            const outboundEdges = edges.filter((e) => e.source === node.id);
+
+            for (const edge of outboundEdges) {
+              // If edge specifies a sourceHandle ('true' or 'false') and it does not match active branch
+              if (edge.sourceHandle && edge.sourceHandle !== activeBranch) {
+                markSubtreeSkipped(edge.target);
+              }
+            }
             break;
 
           default:

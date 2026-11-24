@@ -8,6 +8,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { ValidatorService } from '../engine/validator.service';
 import { ExecutionQueueService } from '../engine/execution.queue';
 import { WorkflowGraphDefinition } from '@nexora/shared';
+import { HttpRequestHandler } from '../engine/node-handlers/http-request.handler';
+import { ConditionHandler } from '../engine/node-handlers/condition.handler';
 
 @Injectable()
 export class ExecutionsService {
@@ -18,6 +20,51 @@ export class ExecutionsService {
     private readonly validator: ValidatorService,
     private readonly queue: ExecutionQueueService,
   ) {}
+
+  async testNode(
+    workspaceId: string,
+    workflowId: string,
+    payload: { nodeType: string; config: any; sampleContext?: any },
+  ) {
+    const startTime = Date.now();
+    const context = payload.sampleContext || {
+      trigger: { test: true, timestamp: Date.now() },
+      steps: {},
+    };
+
+    try {
+      let output: any = {};
+      switch (payload.nodeType) {
+        case 'http-request':
+          output = await HttpRequestHandler.execute(payload.config || {}, context);
+          break;
+
+        case 'condition':
+          output = ConditionHandler.evaluate(payload.config || {}, context);
+          break;
+
+        case 'logger':
+          const raw = payload.config?.message || 'Sample test log';
+          output = { message: HttpRequestHandler.interpolate(raw, context) };
+          break;
+
+        default:
+          output = { executed: true, nodeType: payload.nodeType };
+      }
+
+      return {
+        success: true,
+        durationMs: Date.now() - startTime,
+        output,
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        durationMs: Date.now() - startTime,
+        error: err.message || 'Node execution failed',
+      };
+    }
+  }
 
   async validateWorkflow(workspaceId: string, workflowId: string) {
     const workflow = await this.prisma.workflow.findFirst({

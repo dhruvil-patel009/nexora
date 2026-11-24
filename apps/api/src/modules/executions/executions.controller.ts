@@ -45,6 +45,18 @@ export class ExecutionsController {
     return this.executionsService.runWorkflow(workspaceId, workflowId, triggerInput);
   }
 
+  @Post('workflows/:id/test-node')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Execute an isolated test run of a single node with sample context' })
+  @ApiResponse({ status: 200, description: 'Node test results' })
+  async testNode(
+    @CurrentWorkspace('id') workspaceId: string,
+    @Param('id') workflowId: string,
+    @Body() payload: { nodeType: string; config: any; sampleContext?: any },
+  ) {
+    return this.executionsService.testNode(workspaceId, workflowId, payload);
+  }
+
   @Get('executions')
   @ApiOperation({ summary: 'List execution history for workspace' })
   @ApiResponse({ status: 200, description: 'Execution list' })

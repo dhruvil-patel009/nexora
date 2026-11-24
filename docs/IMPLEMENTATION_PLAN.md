@@ -17,8 +17,8 @@
 | **Phase 3** | **Authentication & Workspace Foundation** | User registration/login, JWT guards, workspace membership, protected routes | **Complete** |
 | **Phase 4** | **Workflow CRUD & Graph Persistence** | Workflow API, React Flow canvas, node palette, graph serializer, unsaved changes | **Complete** |
 | **Phase 5** | **Validation & First Execution Slice** | DAG cycle check, BullMQ runner, Manual Trigger + Logger execution vertical slice | **Complete** |
-| **Phase 6** | **HTTP Request & Condition Nodes** | HTTP node with SSRF guard, AST-based Condition evaluator, test inputs | **Pending Approval** |
-| **Phase 7** | **Webhooks, Publishing & Live Monitoring** | Public webhook endpoints, rate limits, Socket.IO live updates, execution timeline | Pending |
+| **Phase 6** | **HTTP Request & Condition Nodes** | HTTP node with SSRF guard, AST-based Condition evaluator, test inputs | **Complete** |
+| **Phase 7** | **Webhooks, Publishing & Live Monitoring** | Public webhook endpoints, rate limits, Socket.IO live updates, execution timeline | **Pending Approval** |
 | **Phase 8** | **Credentials & Integrations Foundation** | AES-256-GCM encrypted credential vault, HTTP auth resolution, integration test UI | Pending |
 | **Phase 9** | **Testing, Hardening & Deployment** | End-to-end testing, security audits, Docker packaging, CI pipeline, setup docs | Pending |
 | **Phase 10**| **Post-MVP Enhancements** | Natural language AI generator, templates gallery, retry policies, scheduled cron | Deferred |

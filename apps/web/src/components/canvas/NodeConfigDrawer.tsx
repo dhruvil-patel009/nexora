@@ -1,9 +1,11 @@
-import React from "react";
-import { X, Trash2, Settings2 } from "lucide-react";
+import React, { useState } from "react";
+import { X, Trash2, Settings2, Play, CheckCircle2, AlertTriangle, Loader2 } from "lucide-react";
 import { Button } from "../ui/Button";
+import { getAuthToken, getActiveWorkspace } from "@/lib/auth";
 
 interface NodeConfigDrawerProps {
   node: any | null;
+  workflowId?: string;
   onClose: () => void;
   onUpdateConfig: (nodeId: string, updatedData: any) => void;
   onDeleteNode: (nodeId: string) => void;
@@ -11,10 +13,14 @@ interface NodeConfigDrawerProps {
 
 export function NodeConfigDrawer({
   node,
+  workflowId,
   onClose,
   onUpdateConfig,
   onDeleteNode,
 }: NodeConfigDrawerProps) {
+  const [isTesting, setIsTesting] = useState(false);
+  const [testResult, setTestResult] = useState<any | null>(null);
+
   if (!node) return null;
 
   const data = node.data || {};
@@ -37,8 +43,44 @@ export function NodeConfigDrawer({
     });
   };
 
+  const handleTestNode = async () => {
+    if (!workflowId) return;
+    setIsTesting(true);
+    setTestResult(null);
+
+    try {
+      const token = getAuthToken();
+      const workspace = getActiveWorkspace();
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
+
+      const res = await fetch(`${apiUrl}/workflows/${workflowId}/test-node`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "x-workspace-id": workspace?.id || "",
+        },
+        body: JSON.stringify({
+          nodeType: node.type,
+          config,
+          sampleContext: {
+            trigger: { testId: "test_123", timestamp: Date.now() },
+            steps: {},
+          },
+        }),
+      });
+
+      const data = await res.json();
+      setTestResult(data);
+    } catch (err: any) {
+      setTestResult({ success: false, error: err.message || "Test request failed" });
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
   return (
-    <div className="w-80 bg-[#101827]/95 border-l border-[#1E293B] p-5 flex flex-col justify-between overflow-y-auto shrink-0 backdrop-blur-md z-30 shadow-2xl">
+    <div className="w-88 bg-[#101827]/95 border-l border-[#1E293B] p-5 flex flex-col justify-between overflow-y-auto shrink-0 backdrop-blur-md z-30 shadow-2xl">
       <div className="space-y-5">
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-[#1E293B]">
@@ -103,7 +145,23 @@ export function NodeConfigDrawer({
                 placeholder="https://api.example.com/v1/resource"
                 className="w-full px-3 py-1.5 bg-[#172D43] border border-[#2A4365] rounded-lg text-xs text-white focus:outline-none focus:border-[#22D3EE]"
               />
+              <span className="text-[10px] text-[#64748B] block mt-0.5">
+                Protected against SSRF. Supports variable tags: &#123;&#123;steps.node.data&#125;&#125;
+              </span>
             </div>
+
+            {["POST", "PUT", "PATCH"].includes((config.method || "GET").toUpperCase()) && (
+              <div>
+                <label className="block text-[11px] font-mono text-[#94A3B8] mb-1">Request Body (JSON)</label>
+                <textarea
+                  value={typeof config.body === "string" ? config.body : JSON.stringify(config.body || {}, null, 2)}
+                  onChange={(e) => handleConfigChange("body", e.target.value)}
+                  rows={4}
+                  placeholder='{ "key": "value" }'
+                  className="w-full p-2.5 bg-[#101827] border border-[#2A4365] rounded-lg text-xs font-mono text-[#22D3EE] focus:outline-none focus:border-[#22D3EE] resize-none"
+                />
+              </div>
+            )}
 
             <div>
               <label className="block text-[11px] font-mono text-[#94A3B8] mb-1">Timeout (seconds)</label>
@@ -122,7 +180,7 @@ export function NodeConfigDrawer({
         {node.type === "condition" && (
           <div className="space-y-3 pt-3 border-t border-[#1E293B]">
             <h4 className="text-xs font-mono font-semibold text-[#8B5CF6] uppercase tracking-wider">
-              Expression Rule
+              Expression Rule (Zero-Eval)
             </h4>
             <div>
               <label className="block text-[11px] font-mono text-[#94A3B8] mb-1">Target Field Path</label>
@@ -145,8 +203,11 @@ export function NodeConfigDrawer({
                 <option value="equals">equals (==)</option>
                 <option value="not_equals">not equals (!=)</option>
                 <option value="contains">contains</option>
+                <option value="not_contains">does not contain</option>
                 <option value="greater_than">greater than (&gt;)</option>
                 <option value="less_than">less than (&lt;)</option>
+                <option value="greater_than_or_equal">greater than or equal (&gt;=)</option>
+                <option value="less_than_or_equal">less than or equal (&lt;=)</option>
                 <option value="is_empty">is empty</option>
                 <option value="is_not_empty">is not empty</option>
               </select>
@@ -165,39 +226,41 @@ export function NodeConfigDrawer({
           </div>
         )}
 
-        {node.type === "delay" && (
-          <div className="space-y-3 pt-3 border-t border-[#1E293B]">
-            <h4 className="text-xs font-mono font-semibold text-[#F59E0B] uppercase tracking-wider">
-              Delay Duration
-            </h4>
-            <div>
-              <label className="block text-[11px] font-mono text-[#94A3B8] mb-1">Seconds to Wait</label>
-              <input
-                type="number"
-                min="1"
-                max="300"
-                value={config.durationSeconds || 5}
-                onChange={(e) => handleConfigChange("durationSeconds", Number(e.target.value))}
-                className="w-full px-3 py-1.5 bg-[#172D43] border border-[#2A4365] rounded-lg text-xs text-white focus:outline-none focus:border-[#22D3EE]"
-              />
-            </div>
-          </div>
-        )}
+        {/* Isolated Test Node Trigger */}
+        {workflowId && ["http-request", "condition", "logger"].includes(node.type) && (
+          <div className="pt-3 border-t border-[#1E293B] space-y-2">
+            <button
+              onClick={handleTestNode}
+              disabled={isTesting}
+              className="w-full py-1.5 px-3 rounded-lg bg-[#172D43] hover:bg-[#1E3A57] border border-[#2A4365] hover:border-[#22D3EE] text-xs font-semibold text-[#22D3EE] flex items-center justify-center gap-2 transition-all"
+            >
+              {isTesting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5 fill-current" />}
+              <span>Test This Node</span>
+            </button>
 
-        {node.type === "logger" && (
-          <div className="space-y-3 pt-3 border-t border-[#1E293B]">
-            <h4 className="text-xs font-mono font-semibold text-[#22C55E] uppercase tracking-wider">
-              Logger Configuration
-            </h4>
-            <div>
-              <label className="block text-[11px] font-mono text-[#94A3B8] mb-1">Log Message / Expression</label>
-              <input
-                type="text"
-                value={config.message || "Execution completed successfully"}
-                onChange={(e) => handleConfigChange("message", e.target.value)}
-                className="w-full px-3 py-1.5 bg-[#172D43] border border-[#2A4365] rounded-lg text-xs text-white focus:outline-none focus:border-[#22D3EE]"
-              />
-            </div>
+            {testResult && (
+              <div
+                className={`p-2.5 rounded-lg border text-[11px] font-mono space-y-1 ${
+                  testResult.success
+                    ? "bg-[#22C55E]/10 border-[#22C55E]/30 text-[#22C55E]"
+                    : "bg-[#EF4444]/10 border-[#EF4444]/30 text-[#EF4444]"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-bold flex items-center gap-1">
+                    {testResult.success ? <CheckCircle2 className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
+                    {testResult.success ? "Success" : "Failed"}
+                  </span>
+                  <span className="text-[#94A3B8]">{testResult.durationMs}ms</span>
+                </div>
+                {testResult.error && <div>{testResult.error}</div>}
+                {testResult.output && (
+                  <pre className="p-1.5 rounded bg-[#101827] text-[#22D3EE] overflow-x-auto max-h-24">
+                    {JSON.stringify(testResult.output, null, 2)}
+                  </pre>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
