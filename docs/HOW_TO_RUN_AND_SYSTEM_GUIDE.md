@@ -108,7 +108,8 @@ Run the full test suite across the repository using Vitest:
 npm test
 ```
 **What this validates:**
-- 24 automated unit and integration tests verifying Kahn's DAG cycle detector, AST condition operators, SSRF security filters, AES-256-GCM vault cryptography, and the end-to-end critical execution path.
+- 26 automated unit and integration tests verifying Kahn's DAG cycle detector, AST condition operators, SSRF security filters, AES-256-GCM vault cryptography, AI natural-language workflow synthesis, and the end-to-end critical execution path.
+- 15 production-ready automation templates (Lead Intake, Sentiment Analysis, Churn Recovery, DB Health Monitor, GitHub CI Gates, etc.) and 16 integration connectors (Stripe, OpenAI, Slack, Resend, HubSpot, SendGrid, AWS, etc.).
 
 Also verify TypeScript compilation across all monorepo packages:
 ```bash
@@ -421,7 +422,7 @@ This re-applies all migrations cleanly and seeds a fresh database.
 | `npm run infra:down` | Stops local Docker infrastructure |
 | `npm run db:migrate` | Applies Prisma migrations to the database |
 | `npm run db:studio` | Opens visual Prisma database GUI in your browser |
-| `npm test` | Runs the full 24-test Vitest unit and integration suite |
+| `npm test` | Runs the full 26-test Vitest unit and integration suite |
 | `npm run typecheck` | Validates strict TypeScript compilation across all packages |
 | `npm run build` | Compiles Next.js standalone and NestJS production artifacts |
 | `npm run dev:api` | Starts backend NestJS API server on port 4000 |
