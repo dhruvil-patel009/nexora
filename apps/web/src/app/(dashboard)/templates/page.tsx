@@ -679,6 +679,339 @@ const templates: WorkflowTemplate[] = [
       ],
     },
   },
+  {
+    id: "hubspot-crm-enrichment",
+    name: "HubSpot CRM Contact Sync & Deal Routing",
+    category: "Sales & Marketing",
+    badge: "CRM",
+    description: "Captures incoming lead forms, queries HubSpot to enrich contact details, and automatically creates an escalated high-value deal.",
+    nodeTypes: [
+      { label: "Webhook", icon: Webhook, color: "#22D3EE" },
+      { label: "HubSpot POST", icon: Globe, color: "#38BDF8" },
+      { label: "Condition", icon: GitFork, color: "#8B5CF6" },
+      { label: "VIP Deal", icon: CreditCard, color: "#22C55E" },
+    ],
+    definition: {
+      nodes: [
+        {
+          id: "trigger_lead",
+          type: "webhook-trigger",
+          position: { x: 350, y: 100 },
+          data: { label: "Inbound Lead Webhook", config: {} },
+        },
+        {
+          id: "enrich_hubspot",
+          type: "http-request",
+          position: { x: 350, y: 220 },
+          data: {
+            label: "Create/Update Contact in HubSpot",
+            config: {
+              method: "POST",
+              url: "https://api.hubapi.com/crm/v3/objects/contacts",
+              headers: { Authorization: "Bearer {{credentials.HUBSPOT_ACCESS_TOKEN}}" },
+              body: { properties: { email: "{{trigger.email}}", firstname: "{{trigger.name}}" } },
+            },
+          },
+        },
+        {
+          id: "check_deal_value",
+          type: "condition",
+          position: { x: 350, y: 350 },
+          data: {
+            label: "Budget > 10,000",
+            config: { variable: "trigger.budget", operator: "greater_than", value: "10000" },
+          },
+        },
+        {
+          id: "create_vip_deal",
+          type: "http-request",
+          position: { x: 180, y: 490 },
+          data: {
+            label: "Create Enterprise Deal",
+            config: {
+              method: "POST",
+              url: "https://api.hubapi.com/crm/v3/objects/deals",
+              headers: { Authorization: "Bearer {{credentials.HUBSPOT_ACCESS_TOKEN}}" },
+              body: { properties: { dealname: "VIP Enterprise Deal: {{trigger.name}}", amount: "{{trigger.budget}}" } },
+            },
+          },
+        },
+        {
+          id: "log_standard_deal",
+          type: "logger",
+          position: { x: 520, y: 490 },
+          data: {
+            label: "Log Standard Tier Lead",
+            config: { message: "Standard budget tier logged for lead: {{trigger.email}}" },
+          },
+        },
+      ],
+      edges: [
+        { id: "e1", source: "trigger_lead", target: "enrich_hubspot", animated: true },
+        { id: "e2", source: "enrich_hubspot", target: "check_deal_value", animated: true },
+        { id: "e3", source: "check_deal_value", target: "create_vip_deal", sourceHandle: "true", animated: true, style: { stroke: "#22C55E" } },
+        { id: "e4", source: "check_deal_value", target: "log_standard_deal", sourceHandle: "false", animated: true, style: { stroke: "#EF4444" } },
+      ],
+    },
+  },
+  {
+    id: "cloud-storage-processor",
+    name: "Cloud Storage File Ingestion & Lambda Trigger",
+    category: "DevOps & Monitoring",
+    description: "Triggered when files are uploaded to object storage (S3/R2). Validates file extension and size, then invokes AWS Lambda or processing pipeline.",
+    nodeTypes: [
+      { label: "Storage Event", icon: Webhook, color: "#22D3EE" },
+      { label: "Condition", icon: GitFork, color: "#8B5CF6" },
+      { label: "Lambda POST", icon: Globe, color: "#38BDF8" },
+      { label: "Audit Log", icon: Terminal, color: "#F59E0B" },
+    ],
+    definition: {
+      nodes: [
+        {
+          id: "s3_event_trigger",
+          type: "webhook-trigger",
+          position: { x: 350, y: 100 },
+          data: { label: "S3 ObjectCreated Webhook", config: {} },
+        },
+        {
+          id: "check_file_type",
+          type: "condition",
+          position: { x: 350, y: 230 },
+          data: {
+            label: "File Ext == pdf",
+            config: { variable: "trigger.extension", operator: "equals", value: "pdf" },
+          },
+        },
+        {
+          id: "invoke_worker",
+          type: "http-request",
+          position: { x: 180, y: 380 },
+          data: {
+            label: "Trigger Ingestion Worker",
+            config: {
+              method: "POST",
+              url: "https://api.example.com/workers/ingest",
+              body: { bucket: "{{trigger.bucket}}", key: "{{trigger.key}}", size: "{{trigger.size}}" },
+            },
+          },
+        },
+        {
+          id: "log_skip",
+          type: "logger",
+          position: { x: 520, y: 380 },
+          data: {
+            label: "Log Non-PDF File",
+            config: { message: "Skipping non-pdf file upload: {{trigger.key}}" },
+          },
+        },
+      ],
+      edges: [
+        { id: "e1", source: "s3_event_trigger", target: "check_file_type", animated: true },
+        { id: "e2", source: "check_file_type", target: "invoke_worker", sourceHandle: "true", animated: true, style: { stroke: "#22C55E" } },
+        { id: "e3", source: "check_file_type", target: "log_skip", sourceHandle: "false", animated: true, style: { stroke: "#EF4444" } },
+      ],
+    },
+  },
+  {
+    id: "churn-nps-escalation",
+    name: "Customer Churn Risk & NPS Survey Auto-Response",
+    category: "Customer Support",
+    badge: "Automated",
+    description: "Listens for customer satisfaction ratings. Dispatches an immediate high-priority recovery alert to Slack for detractors (score < 6) or thanks promoters.",
+    nodeTypes: [
+      { label: "NPS Webhook", icon: Webhook, color: "#22D3EE" },
+      { label: "Condition", icon: GitFork, color: "#8B5CF6" },
+      { label: "Slack Recovery", icon: Bell, color: "#EF4444" },
+      { label: "Email Thank You", icon: Mail, color: "#22C55E" },
+    ],
+    definition: {
+      nodes: [
+        {
+          id: "nps_trigger",
+          type: "webhook-trigger",
+          position: { x: 350, y: 100 },
+          data: { label: "NPS Survey Webhook", config: {} },
+        },
+        {
+          id: "check_detractor",
+          type: "condition",
+          position: { x: 350, y: 230 },
+          data: {
+            label: "Score < 6 (Detractor)",
+            config: { variable: "trigger.score", operator: "less_than", value: "6" },
+          },
+        },
+        {
+          id: "slack_urgent",
+          type: "http-request",
+          position: { x: 180, y: 380 },
+          data: {
+            label: "Notify Retention Team (Slack)",
+            config: {
+              method: "POST",
+              url: "https://hooks.slack.com/services/retention/alert",
+              body: { text: "URGENT: Detractor alert from {{trigger.email}} with score {{trigger.score}}! Feedback: {{trigger.comment}}" },
+            },
+          },
+        },
+        {
+          id: "email_promoter",
+          type: "http-request",
+          position: { x: 520, y: 380 },
+          data: {
+            label: "Send Promoter Reward (Resend)",
+            config: {
+              method: "POST",
+              url: "https://api.resend.com/emails",
+              headers: { Authorization: "Bearer {{credentials.RESEND_API_KEY}}" },
+              body: { to: "{{trigger.email}}", subject: "Thank you for the high rating!", text: "Here is 20% off your next renewal." },
+            },
+          },
+        },
+      ],
+      edges: [
+        { id: "e1", source: "nps_trigger", target: "check_detractor", animated: true },
+        { id: "e2", source: "check_detractor", target: "slack_urgent", sourceHandle: "true", animated: true, style: { stroke: "#EF4444" } },
+        { id: "e3", source: "check_detractor", target: "email_promoter", sourceHandle: "false", animated: true, style: { stroke: "#22C55E" } },
+      ],
+    },
+  },
+  {
+    id: "database-health-monitor",
+    name: "Scheduled DB Health Check & DevOps Alert",
+    category: "DevOps & Monitoring",
+    description: "Pings a health-check endpoint on a scheduled cadence. Evaluates response code and triggers a PagerDuty incident if metrics degrade.",
+    nodeTypes: [
+      { label: "Cron Check", icon: Terminal, color: "#22D3EE" },
+      { label: "Ping API", icon: Globe, color: "#38BDF8" },
+      { label: "Condition", icon: GitFork, color: "#8B5CF6" },
+      { label: "PagerDuty Alert", icon: Bell, color: "#EF4444" },
+    ],
+    definition: {
+      nodes: [
+        {
+          id: "db_check_trigger",
+          type: "manual-trigger",
+          position: { x: 350, y: 100 },
+          data: { label: "Scheduled Health Pulse", config: {} },
+        },
+        {
+          id: "ping_health_endpoint",
+          type: "http-request",
+          position: { x: 350, y: 220 },
+          data: {
+            label: "Check Production DB Health",
+            config: { method: "GET", url: "https://db-monitor.example.com/health" },
+          },
+        },
+        {
+          id: "check_status",
+          type: "condition",
+          position: { x: 350, y: 350 },
+          data: {
+            label: "Status == 200",
+            config: { variable: "steps.ping_health_endpoint.status", operator: "equals", value: "200" },
+          },
+        },
+        {
+          id: "log_healthy",
+          type: "logger",
+          position: { x: 180, y: 490 },
+          data: {
+            label: "Record Healthy Heartbeat",
+            config: { message: "DB cluster verified healthy at timestamp: {{steps.ping_health_endpoint.timestamp}}" },
+          },
+        },
+        {
+          id: "pagerduty_incident",
+          type: "http-request",
+          position: { x: 520, y: 490 },
+          data: {
+            label: "Trigger PagerDuty Incident",
+            config: {
+              method: "POST",
+              url: "https://events.pagerduty.com/v2/enqueue",
+              headers: { Authorization: "Token token={{credentials.PAGERDUTY_ROUTING_KEY}}" },
+              body: { routing_key: "{{credentials.PAGERDUTY_ROUTING_KEY}}", event_action: "trigger", payload: { summary: "DB Health degradation detected!" } },
+            },
+          },
+        },
+      ],
+      edges: [
+        { id: "e1", source: "db_check_trigger", target: "ping_health_endpoint", animated: true },
+        { id: "e2", source: "ping_health_endpoint", target: "check_status", animated: true },
+        { id: "e3", source: "check_status", target: "log_healthy", sourceHandle: "true", animated: true, style: { stroke: "#22C55E" } },
+        { id: "e4", source: "check_status", target: "pagerduty_incident", sourceHandle: "false", animated: true, style: { stroke: "#EF4444" } },
+      ],
+    },
+  },
+  {
+    id: "github-pr-ci-gate",
+    name: "Pull Request Automated Review & CI Gate",
+    category: "Developer Tools",
+    description: "Intercepts pull request webhook events, checks target branch (e.g. main), triggers an external automated test runner, and logs audit metrics.",
+    nodeTypes: [
+      { label: "PR Webhook", icon: Webhook, color: "#22D3EE" },
+      { label: "Condition", icon: GitFork, color: "#8B5CF6" },
+      { label: "Delay (2s)", icon: Clock, color: "#A855F7" },
+      { label: "Trigger CI", icon: Globe, color: "#38BDF8" },
+      { label: "Audit Log", icon: Terminal, color: "#F59E0B" },
+    ],
+    definition: {
+      nodes: [
+        {
+          id: "pr_trigger",
+          type: "webhook-trigger",
+          position: { x: 350, y: 80 },
+          data: { label: "GitHub PR Opened Webhook", config: {} },
+        },
+        {
+          id: "check_target_main",
+          type: "condition",
+          position: { x: 350, y: 190 },
+          data: {
+            label: "Base Ref == main",
+            config: { variable: "trigger.pull_request.base.ref", operator: "equals", value: "main" },
+          },
+        },
+        {
+          id: "cooldown_delay",
+          type: "delay",
+          position: { x: 200, y: 310 },
+          data: { label: "Throttle 2s", config: { durationSeconds: 2 } },
+        },
+        {
+          id: "post_ci_trigger",
+          type: "http-request",
+          position: { x: 200, y: 430 },
+          data: {
+            label: "Dispatch CI Runner Job",
+            config: {
+              method: "POST",
+              url: "https://ci.example.com/builds",
+              headers: { Authorization: "Bearer {{credentials.GITHUB_TOKEN}}" },
+              body: { sha: "{{trigger.pull_request.head.sha}}", repo: "{{trigger.repository.full_name}}" },
+            },
+          },
+        },
+        {
+          id: "log_skip_branch",
+          type: "logger",
+          position: { x: 520, y: 310 },
+          data: {
+            label: "Skip Feature Branch",
+            config: { message: "Skipped non-main branch: {{trigger.pull_request.base.ref}}" },
+          },
+        },
+      ],
+      edges: [
+        { id: "e1", source: "pr_trigger", target: "check_target_main", animated: true },
+        { id: "e2", source: "check_target_main", target: "cooldown_delay", sourceHandle: "true", animated: true, style: { stroke: "#22C55E" } },
+        { id: "e3", source: "cooldown_delay", target: "post_ci_trigger", animated: true },
+        { id: "e4", source: "check_target_main", target: "log_skip_branch", sourceHandle: "false", animated: true, style: { stroke: "#EF4444" } },
+      ],
+    },
+  },
 ];
 
 const categories = [
