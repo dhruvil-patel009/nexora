@@ -7,6 +7,7 @@ import { WorkflowExecutionJobData } from './execution.queue';
 import { WorkflowGraphDefinition, WorkflowNode } from '@nexora/shared';
 import { HttpRequestHandler } from './node-handlers/http-request.handler';
 import { ConditionHandler } from './node-handlers/condition.handler';
+import { EncryptionService } from '../credentials/encryption.service';
 
 @Injectable()
 export class ExecutionWorkerService implements OnModuleInit, OnModuleDestroy {
@@ -96,14 +97,35 @@ export class ExecutionWorkerService implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
+    // Load vaulted credentials for workspace in-memory (never persisted in logs/context)
+    const vaultedCredentials = await this.prisma.credential.findMany({
+      where: { workspaceId: workflow.workspaceId },
+    });
+
+    const credentialsMap: Record<string, string> = {};
+    for (const cred of vaultedCredentials) {
+      try {
+        const decrypted = EncryptionService.decrypt(
+          cred.encryptedData,
+          cred.iv,
+          cred.authTag,
+        );
+        credentialsMap[cred.name] = decrypted;
+      } catch (err: any) {
+        this.logger.warn(`Could not decrypt credential "${cred.name}": ${err.message}`);
+      }
+    }
+
     const nodeMap = new Map<string, WorkflowNode>();
     for (const node of definition.nodes) {
       nodeMap.set(node.id, node);
     }
 
     // Shared execution context holding outputs of previous steps
+    const triggerData = (triggerInput as any)?.body ? (triggerInput as any).body : (triggerInput || {});
     const executionContext: Record<string, any> = {
-      trigger: triggerInput || {},
+      trigger: triggerData,
+      $trigger: triggerInput || {},
       steps: {},
     };
 
@@ -177,14 +199,16 @@ export class ExecutionWorkerService implements OnModuleInit, OnModuleDestroy {
 
           case 'webhook-trigger':
             nodeOutput = {
-              receivedAt: new Date().toISOString(),
-              payload: triggerInput || {},
+              receivedAt: (triggerInput as any)?.receivedAt || new Date().toISOString(),
+              body: (triggerInput as any)?.body ?? triggerInput ?? {},
+              headers: (triggerInput as any)?.headers ?? {},
+              query: (triggerInput as any)?.query ?? {},
             };
             break;
 
           case 'logger':
             const rawMsg = String((node.data?.config as any)?.message || 'Execution milestone reached');
-            const logMsg = HttpRequestHandler.interpolate(rawMsg, executionContext);
+            const logMsg = HttpRequestHandler.interpolate(rawMsg, executionContext, credentialsMap);
             nodeOutput = {
               message: logMsg,
               loggedAt: new Date().toISOString(),
@@ -208,6 +232,7 @@ export class ExecutionWorkerService implements OnModuleInit, OnModuleDestroy {
             nodeOutput = await HttpRequestHandler.execute(
               (node.data?.config as any) || {},
               executionContext,
+              credentialsMap,
             );
             break;
 

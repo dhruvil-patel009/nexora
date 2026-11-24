@@ -4,17 +4,23 @@ import {
   BadRequestException,
   Logger,
 } from '@nestjs/common';
+import * as crypto from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
+import { ValidatorService } from '../engine/validator.service';
 import { CreateWorkflowDto } from './dto/create-workflow.dto';
 import { UpdateWorkflowDto } from './dto/update-workflow.dto';
 import { QueryWorkflowDto } from './dto/query-workflow.dto';
 import { WorkflowStatus } from '@prisma/client';
+import { WorkflowGraphDefinition } from '@nexora/shared';
 
 @Injectable()
 export class WorkflowsService {
   private readonly logger = new Logger(WorkflowsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly validator: ValidatorService,
+  ) {}
 
   async list(workspaceId: string, query: QueryWorkflowDto) {
     const where: any = { workspaceId };
@@ -34,6 +40,7 @@ export class WorkflowsService {
       where,
       orderBy: { updatedAt: 'desc' },
       include: {
+        webhookEndpoint: true,
         _count: {
           select: { executions: true, versions: true },
         },
@@ -53,6 +60,7 @@ export class WorkflowsService {
         edgeCount: Array.isArray(def.edges) ? def.edges.length : 0,
         executionCount: wf._count.executions,
         publishedAt: wf.publishedAt,
+        hasWebhook: !!wf.webhookEndpoint?.isActive,
         createdAt: wf.createdAt,
         updatedAt: wf.updatedAt,
       };
@@ -99,6 +107,7 @@ export class WorkflowsService {
     const workflow = await this.prisma.workflow.findFirst({
       where: { id, workspaceId },
       include: {
+        webhookEndpoint: true,
         versions: {
           orderBy: { version: 'desc' },
           take: 5,
@@ -129,7 +138,6 @@ export class WorkflowsService {
 
     // If definition updated, increment version and record snapshot
     if (dto.definition !== undefined) {
-      // Validate definition schema shape
       if (typeof dto.definition !== 'object' || dto.definition === null) {
         throw new BadRequestException('Workflow definition must be a valid JSON object');
       }
@@ -142,6 +150,7 @@ export class WorkflowsService {
         const wf = await tx.workflow.update({
           where: { id },
           data,
+          include: { webhookEndpoint: true },
         });
 
         await tx.workflowVersion.create({
@@ -162,6 +171,7 @@ export class WorkflowsService {
     const updated = await this.prisma.workflow.update({
       where: { id },
       data,
+      include: { webhookEndpoint: true },
     });
 
     return updated;
@@ -182,5 +192,125 @@ export class WorkflowsService {
 
     this.logger.log(`Workflow deleted: ${existing.name} (${id})`);
     return { success: true, message: `Workflow "${existing.name}" deleted successfully` };
+  }
+
+  /**
+   * Validates DAG and publishes the workflow, creating/updating an active webhook endpoint.
+   */
+  async publish(workspaceId: string, id: string) {
+    const workflow = await this.prisma.workflow.findFirst({
+      where: { id, workspaceId },
+      include: { webhookEndpoint: true },
+    });
+
+    if (!workflow) {
+      throw new NotFoundException(`Workflow with ID ${id} not found in this workspace`);
+    }
+
+    // 1. Validate graph DAG
+    const definition = workflow.definition as unknown as WorkflowGraphDefinition;
+    const validation = this.validator.validateGraph(definition);
+
+    if (!validation.isValid) {
+      throw new BadRequestException({
+        message: 'Cannot publish workflow with graph validation errors',
+        errors: validation.errors,
+      });
+    }
+
+    // 2. Generate secure 32-byte webhook token
+    const token = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+    // 3. Upsert WebhookEndpoint
+    await this.prisma.webhookEndpoint.upsert({
+      where: { workflowId: id },
+      create: {
+        workflowId: id,
+        tokenHash,
+        isActive: true,
+      },
+      update: {
+        tokenHash,
+        isActive: true,
+      },
+    });
+
+    // 4. Update Workflow status to ACTIVE and set publishedAt timestamp
+    const updated = await this.prisma.workflow.update({
+      where: { id },
+      data: {
+        status: 'ACTIVE',
+        publishedAt: new Date(),
+      },
+      include: { webhookEndpoint: true },
+    });
+
+    this.logger.log(`Workflow published: "${updated.name}" (${updated.id}) - status ACTIVE`);
+
+    return {
+      workflowId: updated.id,
+      name: updated.name,
+      status: updated.status,
+      token,
+      webhookPath: `/api/v1/webhooks/${token}`,
+      publishedAt: updated.publishedAt,
+    };
+  }
+
+  /**
+   * Unpublishes a workflow, deactivating the webhook endpoint and switching status to DRAFT.
+   */
+  async unpublish(workspaceId: string, id: string) {
+    const workflow = await this.prisma.workflow.findFirst({
+      where: { id, workspaceId },
+    });
+
+    if (!workflow) {
+      throw new NotFoundException(`Workflow with ID ${id} not found in this workspace`);
+    }
+
+    // Deactivate endpoint if present
+    await this.prisma.webhookEndpoint.updateMany({
+      where: { workflowId: id },
+      data: { isActive: false },
+    });
+
+    // Set workflow status to DRAFT
+    const updated = await this.prisma.workflow.update({
+      where: { id },
+      data: { status: 'DRAFT' },
+      include: { webhookEndpoint: true },
+    });
+
+    this.logger.log(`Workflow unpublished: "${updated.name}" (${updated.id}) - status DRAFT`);
+
+    return {
+      workflowId: updated.id,
+      status: updated.status,
+      message: 'Workflow successfully unpublished and set to DRAFT',
+    };
+  }
+
+  /**
+   * Retrieves active webhook endpoint status for the workflow.
+   */
+  async getWebhookEndpoint(workspaceId: string, id: string) {
+    const workflow = await this.prisma.workflow.findFirst({
+      where: { id, workspaceId },
+      include: { webhookEndpoint: true },
+    });
+
+    if (!workflow) {
+      throw new NotFoundException(`Workflow with ID ${id} not found in this workspace`);
+    }
+
+    return {
+      workflowId: id,
+      isPublished: workflow.status === 'ACTIVE',
+      publishedAt: workflow.publishedAt,
+      hasActiveWebhook: !!workflow.webhookEndpoint?.isActive,
+      endpointId: workflow.webhookEndpoint?.id || null,
+    };
   }
 }

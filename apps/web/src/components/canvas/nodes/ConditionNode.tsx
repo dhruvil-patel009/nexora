@@ -1,16 +1,16 @@
 import React from "react";
 import { Handle, Position } from "@xyflow/react";
 import { GitFork } from "lucide-react";
+import { getNodeStatusStyle, NodeExecutionBadge } from "./node-status";
 
 export function ConditionNode({ data, selected }: { data: any; selected?: boolean }) {
   const operator = data.config?.operator || "equals";
-  const variable = data.config?.variable || "payload.status";
+  const variable = data.config?.variable || "trigger.status";
+  const statusStyle = getNodeStatusStyle(selected, data.executionStatus);
 
   return (
     <div
-      className={`min-w-[220px] rounded-xl bg-[#172D43] border-2 transition-all p-3 shadow-xl ${
-        selected ? "border-[#8B5CF6] shadow-[#8B5CF6]/20 shadow-lg" : "border-[#2A4365] hover:border-[#8B5CF6]/60"
-      }`}
+      className={`min-w-[220px] rounded-xl bg-[#172D43] border-2 transition-all p-3 shadow-xl ${statusStyle}`}
     >
       <Handle
         type="target"
@@ -30,6 +30,7 @@ export function ConditionNode({ data, selected }: { data: any; selected?: boolea
             <span className="text-[10px] font-mono text-[#8B5CF6]">Logic Branch</span>
           </div>
         </div>
+        <NodeExecutionBadge status={data.executionStatus} />
       </div>
 
       <div className="px-2 py-1 bg-[#101827] rounded border border-[#1E293B] text-[10px] font-mono text-[#94A3B8] truncate">
@@ -49,6 +50,7 @@ export function ConditionNode({ data, selected }: { data: any; selected?: boolea
         style={{ left: "25%" }}
         className="!w-3 !h-3 !bg-[#22C55E] !border-2 !border-[#101827] transition-transform hover:scale-125"
       />
+
       <Handle
         type="source"
         id="false"

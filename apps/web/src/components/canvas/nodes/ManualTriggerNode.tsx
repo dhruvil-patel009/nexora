@@ -1,13 +1,14 @@
 import React from "react";
 import { Handle, Position } from "@xyflow/react";
-import { Play, Sparkles } from "lucide-react";
+import { Play } from "lucide-react";
+import { getNodeStatusStyle, NodeExecutionBadge } from "./node-status";
 
 export function ManualTriggerNode({ data, selected }: { data: any; selected?: boolean }) {
+  const statusStyle = getNodeStatusStyle(selected, data.executionStatus);
+
   return (
     <div
-      className={`min-w-[200px] rounded-xl bg-[#172D43] border-2 transition-all p-3 shadow-xl ${
-        selected ? "border-[#22D3EE] shadow-[#22D3EE]/20 shadow-lg" : "border-[#22D3EE]/50 hover:border-[#22D3EE]"
-      }`}
+      className={`min-w-[200px] rounded-xl bg-[#172D43] border-2 transition-all p-3 shadow-xl ${statusStyle}`}
     >
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
@@ -18,15 +19,13 @@ export function ManualTriggerNode({ data, selected }: { data: any; selected?: bo
             <span className="text-xs font-semibold text-white block leading-tight">
               {data.label || "Manual Trigger"}
             </span>
-            <span className="text-[10px] font-mono text-[#22D3EE]">Trigger</span>
+            <span className="text-[10px] font-mono text-[#22D3EE]">Entrypoint</span>
           </div>
         </div>
+        <NodeExecutionBadge status={data.executionStatus} />
       </div>
-      <p className="text-[11px] text-[#94A3B8] leading-tight">
-        {data.description || "Start execution manually with test payload."}
-      </p>
+      <p className="text-[10px] text-[#94A3B8]">Triggered via button or API test</p>
 
-      {/* Output Handle */}
       <Handle
         type="source"
         position={Position.Bottom}

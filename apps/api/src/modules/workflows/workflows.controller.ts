@@ -79,4 +79,41 @@ export class WorkflowsController {
   ) {
     return this.workflowsService.delete(workspaceId, id);
   }
+
+  @Post(':id/publish')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Publish workflow: validates DAG, activates status, and generates secure webhook endpoint',
+  })
+  @ApiResponse({ status: 200, description: 'Workflow published with active webhook token' })
+  @ApiResponse({ status: 400, description: 'Workflow validation failed' })
+  async publish(
+    @CurrentWorkspace('id') workspaceId: string,
+    @Param('id') id: string,
+  ) {
+    return this.workflowsService.publish(workspaceId, id);
+  }
+
+  @Post(':id/unpublish')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Unpublish workflow: deactivates webhook endpoint and sets status to DRAFT',
+  })
+  @ApiResponse({ status: 200, description: 'Workflow unpublished' })
+  async unpublish(
+    @CurrentWorkspace('id') workspaceId: string,
+    @Param('id') id: string,
+  ) {
+    return this.workflowsService.unpublish(workspaceId, id);
+  }
+
+  @Get(':id/webhook-endpoint')
+  @ApiOperation({ summary: 'Get webhook endpoint status and metadata' })
+  @ApiResponse({ status: 200, description: 'Webhook endpoint metadata' })
+  async getWebhookEndpoint(
+    @CurrentWorkspace('id') workspaceId: string,
+    @Param('id') id: string,
+  ) {
+    return this.workflowsService.getWebhookEndpoint(workspaceId, id);
+  }
 }

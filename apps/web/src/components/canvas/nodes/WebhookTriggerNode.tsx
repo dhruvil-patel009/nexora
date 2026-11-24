@@ -1,13 +1,14 @@
 import React from "react";
 import { Handle, Position } from "@xyflow/react";
 import { Webhook } from "lucide-react";
+import { getNodeStatusStyle, NodeExecutionBadge } from "./node-status";
 
 export function WebhookTriggerNode({ data, selected }: { data: any; selected?: boolean }) {
+  const statusStyle = getNodeStatusStyle(selected, data.executionStatus);
+
   return (
     <div
-      className={`min-w-[220px] rounded-xl bg-[#172D43] border-2 transition-all p-3 shadow-xl ${
-        selected ? "border-[#22D3EE] shadow-[#22D3EE]/20 shadow-lg" : "border-[#22D3EE]/50 hover:border-[#22D3EE]"
-      }`}
+      className={`min-w-[220px] rounded-xl bg-[#172D43] border-2 transition-all p-3 shadow-xl ${statusStyle}`}
     >
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
@@ -21,6 +22,7 @@ export function WebhookTriggerNode({ data, selected }: { data: any; selected?: b
             <span className="text-[10px] font-mono text-[#22D3EE]">Trigger</span>
           </div>
         </div>
+        <NodeExecutionBadge status={data.executionStatus} />
       </div>
       <div className="px-2 py-1 bg-[#101827] rounded border border-[#1E293B] text-[10px] font-mono text-[#94A3B8] truncate">
         POST /api/v1/webhooks/:token

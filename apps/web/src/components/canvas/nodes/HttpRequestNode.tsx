@@ -1,16 +1,16 @@
 import React from "react";
 import { Handle, Position } from "@xyflow/react";
 import { Globe } from "lucide-react";
+import { getNodeStatusStyle, NodeExecutionBadge } from "./node-status";
 
 export function HttpRequestNode({ data, selected }: { data: any; selected?: boolean }) {
   const method = data.config?.method || "GET";
   const url = data.config?.url || "https://api.example.com";
+  const statusStyle = getNodeStatusStyle(selected, data.executionStatus);
 
   return (
     <div
-      className={`min-w-[220px] rounded-xl bg-[#172D43] border-2 transition-all p-3 shadow-xl ${
-        selected ? "border-[#22D3EE] shadow-[#22D3EE]/20 shadow-lg" : "border-[#2A4365] hover:border-[#22D3EE]/60"
-      }`}
+      className={`min-w-[220px] rounded-xl bg-[#172D43] border-2 transition-all p-3 shadow-xl ${statusStyle}`}
     >
       <Handle
         type="target"
@@ -30,9 +30,12 @@ export function HttpRequestNode({ data, selected }: { data: any; selected?: bool
             <span className="text-[10px] font-mono text-[#38BDF8]">Action</span>
           </div>
         </div>
-        <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-[#101827] text-[#22D3EE] border border-[#22D3EE]/30">
-          {method}
-        </span>
+        <div className="flex items-center gap-1.5">
+          <NodeExecutionBadge status={data.executionStatus} />
+          <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-[#101827] text-[#22D3EE] border border-[#22D3EE]/30">
+            {method}
+          </span>
+        </div>
       </div>
 
       <div className="px-2 py-1 bg-[#101827] rounded border border-[#1E293B] text-[10px] font-mono text-[#94A3B8] truncate">

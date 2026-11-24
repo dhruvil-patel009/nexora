@@ -19,7 +19,9 @@ export default function WorkflowEditorPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
   const [currentExecution, setCurrentExecution] = useState<ExecutionDetails | null>(null);
+  const [webhookUrl, setWebhookUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -44,6 +46,12 @@ export default function WorkflowEditorPage() {
 
         const data = await res.json();
         setWorkflow(data);
+
+        // Check if there's an active webhook endpoint
+        if (data.status === "ACTIVE" && data.webhookEndpoint?.isActive) {
+          // If token isn't stored in plaintext, URL format is documented
+          setWebhookUrl(`${apiUrl}/webhooks/${workflowId}`);
+        }
       } catch (err: any) {
         setError(err.message || "Failed to load workflow definition");
       } finally {
@@ -86,13 +94,93 @@ export default function WorkflowEditorPage() {
     }
   };
 
+  const handlePublish = async () => {
+    setIsPublishing(true);
+    try {
+      const token = getAuthToken();
+      const workspace = getActiveWorkspace();
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
+
+      const res = await fetch(`${apiUrl}/workflows/${workflowId}/publish`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "x-workspace-id": workspace?.id || "",
+        },
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        const msg = Array.isArray(errData.errors) ? errData.errors.join("; ") : errData.message;
+        throw new Error(msg || "Failed to publish workflow");
+      }
+
+      const publishData = await res.json();
+      setWorkflow((prev: any) => ({
+        ...prev,
+        status: "ACTIVE",
+        publishedAt: publishData.publishedAt,
+      }));
+
+      const fullWebhookUrl = `${apiUrl.replace(/\/api\/v1\/?$/, "")}${publishData.webhookPath}`;
+      setWebhookUrl(fullWebhookUrl);
+
+      return {
+        ...publishData,
+        webhookUrl: fullWebhookUrl,
+      };
+    } catch (err: any) {
+      alert(`Publish error: ${err.message}`);
+      return null;
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
+  const handleUnpublish = async () => {
+    if (!confirm("Are you sure you want to unpublish this workflow? Inbound webhooks will be deactivated.")) {
+      return;
+    }
+
+    setIsPublishing(true);
+    try {
+      const token = getAuthToken();
+      const workspace = getActiveWorkspace();
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
+
+      const res = await fetch(`${apiUrl}/workflows/${workflowId}/unpublish`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "x-workspace-id": workspace?.id || "",
+        },
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to unpublish workflow");
+      }
+
+      setWorkflow((prev: any) => ({
+        ...prev,
+        status: "DRAFT",
+      }));
+      setWebhookUrl(null);
+    } catch (err: any) {
+      alert(`Unpublish error: ${err.message}`);
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
   const pollExecution = async (executionId: string) => {
     const token = getAuthToken();
     const workspace = getActiveWorkspace();
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
 
     let attempts = 0;
-    const maxAttempts = 20;
+    const maxAttempts = 30;
 
     const interval = setInterval(async () => {
       attempts++;
@@ -119,7 +207,7 @@ export default function WorkflowEditorPage() {
           setIsRunning(false);
         }
       }
-    }, 800);
+    }, 600);
   };
 
   const handleRunWorkflow = async () => {
@@ -200,11 +288,16 @@ export default function WorkflowEditorPage() {
         workflowId={workflow.id}
         workflowName={workflow.name}
         workflowStatus={workflow.status}
+        webhookUrl={webhookUrl}
+        publishedAt={workflow.publishedAt}
         initialDefinition={workflow.definition}
         onSave={handleSave}
         onRunWorkflow={handleRunWorkflow}
+        onPublish={handlePublish}
+        onUnpublish={handleUnpublish}
         isSaving={isSaving}
         isRunning={isRunning}
+        isPublishing={isPublishing}
         currentExecution={currentExecution}
       />
     </div>
