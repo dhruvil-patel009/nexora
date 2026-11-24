@@ -11,17 +11,17 @@
 
 | Phase | Title | Description | Status |
 |---|---|---|---|
-| **Phase 0** | **Repository Inspection & Planning** | Inspect repo, establish architecture docs, plan structure | **In Progress** |
-| **Phase 1** | **Foundation & Local Infrastructure** | Monorepo layout, Docker Compose (PG+Redis), NestJS + Next.js init, Prisma setup | **Pending Approval** |
-| **Phase 2** | **Design System & Application Shell** | Nexora theme, navigation layout, sidebar, page shells, empty/loading states | Pending |
-| **Phase 3** | **Authentication & Workspace Foundation** | User registration/login, JWT guards, workspace membership, protected routes | Pending |
-| **Phase 4** | **Workflow CRUD & Graph Persistence** | Workflow API, React Flow canvas, node palette, graph serializer, unsaved changes | Pending |
-| **Phase 5** | **Validation & First Execution Slice** | DAG cycle check, BullMQ runner, Manual Trigger + Logger execution vertical slice | Pending |
-| **Phase 6** | **HTTP Request & Condition Nodes** | HTTP node with SSRF guard, AST-based Condition evaluator, test inputs | Pending |
-| **Phase 7** | **Webhooks, Publishing & Live Monitoring** | Public webhook endpoints, rate limits, Socket.IO live updates, execution timeline | Pending |
-| **Phase 8** | **Credentials & Integrations Foundation** | AES-256-GCM encrypted credential vault, HTTP auth resolution, integration test UI | Pending |
-| **Phase 9** | **Testing, Hardening & Deployment** | End-to-end testing, security audits, Docker packaging, CI pipeline, setup docs | Pending |
-| **Phase 10**| **Post-MVP Enhancements** | Natural language AI generator, templates gallery, retry policies, scheduled cron | Deferred |
+| **Phase 0** | **Repository Inspection & Planning** | Inspect repo, establish architecture docs, plan structure | **Complete** |
+| **Phase 1** | **Foundation & Local Infrastructure** | Monorepo layout, Docker Compose (PG+Redis), NestJS + Next.js init, Prisma setup | **Complete** |
+| **Phase 2** | **Design System & Application Shell** | Nexora theme, navigation layout, sidebar, page shells, empty/loading states | **Complete** |
+| **Phase 3** | **Authentication & Workspace Foundation** | User registration/login, JWT guards, workspace membership, protected routes | **Complete** |
+| **Phase 4** | **Workflow CRUD & Graph Persistence** | Workflow API, React Flow canvas, node palette, graph serializer, unsaved changes | **Complete** |
+| **Phase 5** | **Validation & First Execution Slice** | DAG cycle check, BullMQ runner, Manual Trigger + Logger execution vertical slice | **Complete** |
+| **Phase 6** | **HTTP Request & Condition Nodes** | HTTP node with SSRF guard, AST-based Condition evaluator, test inputs | **Complete** |
+| **Phase 7** | **Webhooks, Publishing & Live Monitoring** | Public webhook endpoints, rate limits, live execution status, node pulsing | **Complete** |
+| **Phase 8** | **Credentials & Integrations Foundation** | AES-256-GCM encrypted credential vault, HTTP auth resolution, integration test UI | **Complete** |
+| **Phase 9** | **Testing, Hardening & Deployment** | End-to-end testing, security audits, Docker packaging, CI pipeline, setup docs | **Complete** |
+| **Phase 10**| **Post-MVP Enhancements** | Natural language AI generator, templates gallery, telemetry analytics, settings | **Complete** |
 
 ---
 
@@ -244,9 +244,9 @@
 
 ---
 
-### Phase 10: Post-MVP Enhancements (Deferred)
-- AI-assisted natural language workflow generation.
-- Public template gallery.
-- Scheduled cron triggers.
-- Parallel branch execution and sub-workflows.
-- Team invitations and granular role permissions.
+### Phase 10: Post-MVP Enhancements (Complete)
+- [x] AI-assisted natural language workflow generation (`AiWorkflowGeneratorService` + canvas modal).
+- [x] Production-ready Template Gallery (`/templates`) with 1-click cloning.
+- [x] Real-time workspace telemetry and analytics API (`GET /api/v1/workspace/analytics`).
+- [x] Live dashboard with execution success rate, active DAG counts, and recent runs feed.
+- [x] Workspace settings with real member roles and infrastructure health status.

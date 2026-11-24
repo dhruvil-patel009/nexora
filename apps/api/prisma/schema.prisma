@@ -1,0 +1,195 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum WorkspaceRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum WorkflowStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum ExecutionStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+enum NodeExecutionStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+  SKIPPED
+}
+
+enum TriggerType {
+  MANUAL
+  WEBHOOK
+  SCHEDULE
+}
+
+enum CredentialType {
+  API_KEY
+  BEARER_TOKEN
+  BASIC_AUTH
+  CUSTOM_HEADER
+}
+
+model User {
+  id           String            @id @default(uuid())
+  email        String            @unique
+  passwordHash String
+  fullName     String
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  memberships  WorkspaceMember[]
+
+  @@map("users")
+}
+
+model Workspace {
+  id          String            @id @default(uuid())
+  name        String
+  slug        String            @unique
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  members     WorkspaceMember[]
+  workflows   Workflow[]
+  credentials Credential[]
+  executions  Execution[]
+
+  @@map("workspaces")
+}
+
+model WorkspaceMember {
+  id          String        @id @default(uuid())
+  workspaceId String
+  userId      String
+  role        WorkspaceRole @default(MEMBER)
+  createdAt   DateTime      @default(now())
+
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@map("workspace_members")
+}
+
+model Workflow {
+  id             String            @id @default(uuid())
+  workspaceId    String
+  name           String
+  description    String?
+  status         WorkflowStatus    @default(DRAFT)
+  definition     Json              @default("{\"nodes\":[],\"edges\":[]}")
+  currentVersion Int               @default(1)
+  publishedAt    DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  workspace      Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  versions       WorkflowVersion[]
+  executions     Execution[]
+  webhookEndpoint WebhookEndpoint?
+
+  @@index([workspaceId])
+  @@map("workflows")
+}
+
+model WorkflowVersion {
+  id          String   @id @default(uuid())
+  workflowId  String
+  version     Int
+  definition  Json
+  createdAt   DateTime @default(now())
+
+  workflow    Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@unique([workflowId, version])
+  @@map("workflow_versions")
+}
+
+model WebhookEndpoint {
+  id         String   @id @default(uuid())
+  workflowId String   @unique
+  tokenHash  String   @unique
+  secretHash String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  workflow   Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@map("webhook_endpoints")
+}
+
+model Execution {
+  id              String          @id @default(uuid())
+  workspaceId     String
+  workflowId      String
+  workflowVersion Int
+  triggerType     TriggerType     @default(MANUAL)
+  status          ExecutionStatus @default(QUEUED)
+  triggerInput    Json?
+  outputSummary   Json?
+  errorSummary    String?
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  createdAt       DateTime        @default(now())
+
+  workspace       Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workflow        Workflow        @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  nodeExecutions  NodeExecution[]
+
+  @@index([workspaceId])
+  @@index([workflowId])
+  @@map("executions")
+}
+
+model NodeExecution {
+  id           String              @id @default(uuid())
+  executionId  String
+  nodeId       String
+  nodeType     String
+  status       NodeExecutionStatus @default(PENDING)
+  inputData    Json?
+  outputData   Json?
+  errorMessage String?
+  durationMs   Int?
+  startedAt    DateTime?
+  finishedAt   DateTime?
+
+  execution    Execution           @relation(fields: [executionId], references: [id], onDelete: Cascade)
+
+  @@index([executionId])
+  @@map("node_executions")
+}
+
+model Credential {
+  id            String         @id @default(uuid())
+  workspaceId   String
+  name          String
+  type          CredentialType
+  encryptedData String
+  iv            String
+  authTag       String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@map("credentials")
+}

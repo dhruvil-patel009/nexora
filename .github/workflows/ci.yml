@@ -1,0 +1,76 @@
+name: Nexora Continuous Integration
+
+on:
+  push:
+    branches: [main, feature/**]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify:
+    name: Lint, Typecheck, Test & Build
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: nexora
+          POSTGRES_PASSWORD: nexora_ci_password
+          POSTGRES_DB: nexora_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: 'npm'
+
+      - name: Install Monorepo Dependencies
+        run: npm ci
+
+      - name: Build Shared Package
+        run: npm run build -w @nexora/shared
+
+      - name: Generate Prisma Client
+        run: npx prisma generate --schema=apps/api/prisma/schema.prisma
+
+      - name: Push Database Schema to Test PostgreSQL
+        run: npx prisma db push --schema=apps/api/prisma/schema.prisma --skip-generate
+        env:
+          DATABASE_URL: postgresql://nexora:nexora_ci_password@localhost:5432/nexora_test?schema=public
+
+      - name: Static Typecheck Across All Workspaces
+        run: npm run typecheck
+
+      - name: Run Automated Test Suites (Vitest)
+        run: npm test
+        env:
+          DATABASE_URL: postgresql://nexora:nexora_ci_password@localhost:5432/nexora_test?schema=public
+          REDIS_URL: redis://localhost:6379
+
+      - name: Build All Workspaces
+        run: npm run build
+        env:
+          DATABASE_URL: postgresql://nexora:nexora_ci_password@localhost:5432/nexora_test?schema=public
+          NEXT_PUBLIC_API_URL: http://localhost:4000/api/v1

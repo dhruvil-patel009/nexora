@@ -1,0 +1,50 @@
+name: nexora-infrastructure
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: nexora-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-nexora}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nexora_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-nexora}
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - nexora-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nexora} -d ${POSTGRES_DB:-nexora}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - nexora-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: nexora-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - nexora-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - nexora-network
+
+volumes:
+  nexora-postgres-data:
+    name: nexora-postgres-data
+  nexora-redis-data:
+    name: nexora-redis-data
+
+networks:
+  nexora-network:
+    name: nexora-network
+    driver: bridge
